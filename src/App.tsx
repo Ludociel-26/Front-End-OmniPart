@@ -1,35 +1,40 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import Login from "./features/auth/SignIn";
+import Home from "./pages/Home";
+import Verify from "./features/auth/VerifyEmail";
+import ResetPassword from "./features/auth/ResetPassword";
+import NotFound from "./features/auth/NotFound";
+import Dashboard from './features/dashboard/Dashboard'; // Descomenta esto cuando crees el componente Dashboard
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
+    <BrowserRouter>
+      {" "}
+      {/* 2. El Router debe envolver TODO el contenido */}
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <ToastContainer />
+        <Routes>
+          {/* 📌 Rutas públicas */}
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/verify-email" element={<Verify />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          <Route path='*' element={<NotFound />} />
+          {/* 📌 Ruta protegida para Dashboard */}
+          {/* He añadido un elemento temporal para que no te de error visual al entrar */}
+          <Route
+            path="/test"
+            element={<h1>Panel de Dashboard (Próximamente)</h1>}
+          />
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
