@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import "@cloudscape-design/global-styles/index.css";
 import "react-toastify/dist/ReactToastify.css";
 import Login from "./features/auth/SignIn";
 import Home from "./pages/Home";
 import Verify from "./features/auth/VerifyEmail";
 import ResetPassword from "./features/auth/ResetPassword";
 import NotFound from "./features/auth/NotFound";
-import Dashboard from './features/dashboard/Dashboard'; // Descomenta esto cuando crees el componente Dashboard
+ import Dashboard from './features/auth/dashboard/index'; // Descomenta esto cuando crees el componente Dashboard
 
 function App() {
   return (
