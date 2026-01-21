@@ -470,7 +470,7 @@ export default function Login() {
             {/* FOOTER */}
             <div className="mt-8 text-center lg:text-left flex-shrink-0">
                 <p className={`text-[10px] ${isDarkMode ? "text-zinc-500" : "text-gray-600"}`}>
-                    &copy; 2024 OmniPart Inc. <a href="#" className="underline hover:text-emerald-600 transition-colors">Política de Privacidad</a>
+                    &copy; 2026 OmniPart Inc. <a href="#" className="underline hover:text-emerald-600 transition-colors">Política de Privacidad</a>
                 </p>
             </div>
         </div>

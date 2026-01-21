@@ -72,7 +72,7 @@ export default function DashboardFeature() {
     const timer = setTimeout(() => {
       setIsUserLoading(false);
       // FOTO DE PRUEBA (Cuadrada para probar el recorte circular)
-      setUserAvatarUrl("https://i.pravatar.cc/300?img=33"); 
+      setUserAvatarUrl(""); 
     }, 3000); 
     return () => clearTimeout(timer);
   }, []);
@@ -303,7 +303,7 @@ export default function DashboardFeature() {
         <TopNavigation
           identity={{
             href: "#",
-            title: "HotelBits",
+            title: "OmniPart",
             logo: {
               src: "https://d1.awsstatic.com/webteam/homepage/editor-choice/site-builder-icon.2625292e35a72728329606555627255760163359.png",
               alt: "Logo"
@@ -316,7 +316,7 @@ export default function DashboardFeature() {
                 ariaLabel="Buscador global"
                 value={searchValue}
                 onChange={({ detail }) => setSearchValue(detail.value)}
-                placeholder="Buscar (ej. Reservas, Usuarios, Ajustes)..."
+                placeholder="Buscar (ej. Refacciones, Usuarios, Ajustes)..."
                 type="search"
               />
               <div className="search-shortcut-badge">

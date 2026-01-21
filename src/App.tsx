@@ -2,12 +2,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "@cloudscape-design/global-styles/index.css";
 import "react-toastify/dist/ReactToastify.css";
-import Login from "./features/auth/SignIn";
+import Login from "./pages/auth/SignIn";
 import Home from "./pages/Home";
-import Verify from "./features/auth/VerifyEmail";
-import ResetPassword from "./features/auth/ResetPassword";
-import NotFound from "./features/auth/NotFound";
- import Dashboard from './features/auth/dashboard/index'; // Descomenta esto cuando crees el componente Dashboard
+import Verify from "./pages/auth/VerifyEmail";
+import ResetPassword from "./pages/auth/ResetPassword";
+import NotFound from "./pages/auth/NotFound";
+import Dashboard from './pages/auth/dashboard/index'; // Descomenta esto cuando crees el componente Dashboard
+import Inventory from "./pages/auth/table-inventory-items/index"
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/verify-email" element={<Verify />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/inventory" element={<Inventory />} />
 
           <Route path='*' element={<NotFound />} />
           {/* 📌 Ruta protegida para Dashboard */}
