@@ -1,120 +1,258 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Home, MoveLeft, AlertTriangle } from "lucide-react";
+import * as React from "react";
+// 1. Imports de Cloudscape
+import {
+  Table,
+  Box,
+  SpaceBetween,
+  Button,
+  TextFilter,
+  Header,
+  Pagination,
+  CollectionPreferences,
+  Select,
+  AppLayout,       // <--- CRUCIAL: El layout principal
+  BreadcrumbGroup, // <--- Las migas de pan (ruta superior)
+  Flashbar,        // <--- Las barras de notificación azul/verde
+  StatusIndicator, // <--- Para los circulitos de estado
+  Link             // <--- Para simular links en la tabla
+} from "@cloudscape-design/components";
 
-// Usamos la misma imagen de fondo para mantener la identidad de marca
-const BACKGROUND_IMAGE = "../assets/sono-background-light.png";
+import type { TableProps, SelectProps } from "@cloudscape-design/components";
+import { useCollection } from "@cloudscape-design/collection-hooks";
 
-export default function Inventory() {
-  // Lógica de tema simplificada para esta vista
-  const [isDarkMode, setIsDarkMode] = useState(true);
+// Imports de tus componentes
+import Navbar from '../../layouts/navbar/Navbar'; 
+import GlobalSidebar from '../../layouts/sidebar/Sidebar'; 
 
-  useEffect(() => {
-    // Detectar preferencia guardada o del sistema
-    const savedTheme = localStorage.getItem("theme");
-    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    
-    if (savedTheme === "dark" || (!savedTheme && sysDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove("dark");
+// --- DATOS Y CONFIGURACIÓN ---
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  status: "Available" | "Out of Stock" | "Discontinued";
+  quantity: number;
+  lastUpdated: string;
+}
+
+const COLUMN_DEFINITIONS: TableProps.ColumnDefinition<InventoryItem>[] = [
+  {
+    id: "name",
+    header: "Nombre del Producto",
+    // Usamos Link para que se vea azul como en la captura
+    cell: item => <Link href={`#${item.id}`}>{item.name}</Link>,
+    sortingField: "name",
+    isRowHeader: true
+  },
+  {
+    id: "category",
+    header: "Categoría",
+    cell: item => item.category,
+    sortingField: "category"
+  },
+  {
+    id: "status",
+    header: "Estado",
+    // StatusIndicator replica los iconos rojo/verde de la captura
+    cell: item => (
+      <StatusIndicator type={item.status === "Available" ? "success" : "error"}>
+        {item.status}
+      </StatusIndicator>
+    ),
+    sortingField: "status"
+  },
+  {
+    id: "quantity",
+    header: "Cantidad",
+    cell: item => item.quantity,
+    sortingField: "quantity"
+  },
+  {
+    id: "lastUpdated",
+    header: "Última Actualización",
+    cell: item => item.lastUpdated,
+    sortingField: "lastUpdated"
+  }
+];
+
+const MOCK_INVENTORY: InventoryItem[] = [
+  { id: "1", name: "Servidor Rack 4U", category: "Hardware", status: "Available", quantity: 15, lastUpdated: "2024-01-20" },
+  { id: "2", name: "Cable Óptico 10m", category: "Accesorios", status: "Out of Stock", quantity: 0, lastUpdated: "2024-01-18" },
+  { id: "3", name: "Switch Gestionable", category: "Redes", status: "Available", quantity: 8, lastUpdated: "2024-01-19" },
+  { id: "4", name: "Licencia Software", category: "Software", status: "Available", quantity: 50, lastUpdated: "2024-01-15" },
+  { id: "5", name: "Router Industrial", category: "Redes", status: "Discontinued", quantity: 2, lastUpdated: "2023-12-10" },
+  { id: "6", name: "Panel Patch", category: "Accesorios", status: "Available", quantity: 25, lastUpdated: "2024-01-21" },
+];
+
+const CATEGORY_OPTIONS = [
+  { label: "Todas las categorías", value: undefined },
+  { label: "Hardware", value: "Hardware" },
+  { label: "Redes", value: "Redes" },
+  { label: "Accesorios", value: "Accesorios" },
+  { label: "Software", value: "Software" }
+];
+
+// --- COMPONENTE PRINCIPAL ---
+
+export default function InventoryTable() {
+  const [selectedItems, setSelectedItems] = React.useState<InventoryItem[]>([]);
+  const [categoryFilter, setCategoryFilter] = React.useState<SelectProps.Option | null>(CATEGORY_OPTIONS[0]);
+
+  const { items, actions, filteredItemsCount, collectionProps, paginationProps, filterProps } = useCollection(
+    MOCK_INVENTORY,
+    {
+      pagination: { pageSize: 10 },
+      sorting: { defaultState: { sortingColumn: COLUMN_DEFINITIONS[0] } },
+      selection: {},
+      filtering: {
+        empty: (
+          <Box textAlign="center" color="inherit">
+            <b>No hay items</b>
+            <Box padding={{ bottom: "s" }} variant="p" color="inherit">
+              No se encontraron recursos.
+            </Box>
+          </Box>
+        ),
+        noMatch: (
+          <Box textAlign="center" color="inherit">
+            <b>No hay coincidencias</b>
+            <Box padding={{ bottom: "s" }} variant="p" color="inherit">
+              Intenta borrar el filtro.
+            </Box>
+            <Button onClick={() => actions.setFiltering("")}>Borrar filtro</Button>
+          </Box>
+        ),
+        filteringFunction: (item, filteringText) => {
+          const matchesText = item.name.toLowerCase().includes(filteringText.toLowerCase());
+          const matchesCategory = categoryFilter?.value 
+            ? item.category === categoryFilter.value 
+            : true;
+          return matchesText && matchesCategory;
+        }
+      },
     }
-  }, []);
+  );
 
   return (
-    <div className={`min-h-screen w-full relative flex items-center justify-center p-4 overflow-hidden ${isDarkMode ? "bg-[#050505]" : "bg-gray-200"}`}>
+    <>
+      {/* 1. Navbar fuera del AppLayout */}
+      <Navbar />
       
-      {/* 1. FONDO ESTATICO (Igual al Login) */}
-      <div className="absolute inset-0 z-0 bg-cover bg-center fixed" style={{ backgroundImage: `url(${BACKGROUND_IMAGE})` }}>
-        <div className={`absolute inset-0 transition-colors duration-500 ${isDarkMode ? "bg-black/70" : "bg-white/30 backdrop-blur-[2px]"}`}></div>
-      </div>
-
-      {/* 2. CONTENEDOR PRINCIPAL (Glassmorphism) */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`relative z-10 w-full max-w-2xl p-8 md:p-12 rounded-[3rem] text-center border shadow-2xl backdrop-blur-xl ${
-            isDarkMode 
-            ? "bg-black/30 border-white/10" 
-            : "bg-white/60 border-white/40"
-        }`}
-      >
+      {/* 2. AppLayout maneja toda la estructura (Sidebar, Breadcrumbs, Notificaciones, Contenido) */}
+      <AppLayout
+        navigation={<GlobalSidebar />}
+        toolsHide={true} // Ocultamos el panel derecho para igualar la captura
         
-        {/* Etiqueta Flotante */}
-        <motion.div 
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-bold text-xs uppercase tracking-widest mb-6"
-        >
-            <AlertTriangle size={14} />
-            Error 404
-        </motion.div>
+        // MIGAS DE PAN (Ruta superior)
+        breadcrumbs={
+          <BreadcrumbGroup
+            items={[
+              { text: "Service", href: "#" },
+              { text: "Dashboard", href: "#" },
+              { text: "Instances", href: "#" }
+            ]}
+          />
+        }
 
-        {/* Número Gigante Animado */}
-        <motion.h1 
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
-            className={`text-[8rem] md:text-[10rem] leading-none font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b ${
-                isDarkMode 
-                ? "from-white via-zinc-400 to-transparent" 
-                : "from-gray-900 via-gray-600 to-transparent"
-            }`}
-        >
-            404
-        </motion.h1>
+        // NOTIFICACIONES (Barras Azul y Verde)
+        notifications={
+          <Flashbar
+            items={[
+              {
+                type: "info",
+                dismissible: true,
+                content: "Esta demostración es un ejemplo de los patrones de Cloudscape Design System.",
+                id: "message_1"
+              },
+              {
+                type: "success",
+                dismissible: true,
+                content: "Recurso creado exitosamente",
+                id: "message_2"
+              }
+            ]}
+          />
+        }
 
-        {/* Mensaje de Texto */}
-        <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="space-y-4 mb-10"
-        >
-            <h2 className={`text-2xl md:text-3xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                ¡Ups! Página no encontrada
-            </h2>
-            <p className={`text-sm md:text-base max-w-md mx-auto ${isDarkMode ? "text-zinc-400" : "text-gray-600"}`}>
-                Parece que la página que buscas se ha movido, eliminado o nunca existió en nuestro inventario.
-            </p>
-        </motion.div>
+        // CONTENIDO PRINCIPAL (La Tabla)
+        content={
+          <Table
+            {...collectionProps}
+            selectedItems={selectedItems}
+            onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems as InventoryItem[])}
+            ariaLabels={{
+              selectionGroupLabel: "Selección de items",
+              allItemsSelectionLabel: ({ selectedItems }) => `${selectedItems.length} seleccionados`,
+              itemSelectionLabel: ({ selectedItems }, item) => item.name
+            }}
+            columnDefinitions={COLUMN_DEFINITIONS}
+            items={items}
+            selectionType="multi" // Checkboxes a la izquierda
+            variant="full-page"   // Estilo plano integrado al fondo
+            stickyHeader={true}
+            
+            // CABECERA DE LA TABLA
+            header={
+              <Header
+                counter={`(${items.length})`}
+                info={<Link variant="info">Info</Link>} // Link "Info" pequeño
+                actions={
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Button disabled={selectedItems.length === 0}>Instance actions</Button>
+                    <Button disabled={selectedItems.length === 0}>Restore from S3</Button>
+                    <Button variant="primary">Launch DB instance</Button>
+                  </SpaceBetween>
+                }
+              >
+                Instances
+              </Header>
+            }
 
-        {/* Botón de Regreso */}
-        <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-        >
-            <Link to="/">
-                <button className={`group relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg ${
-                    isDarkMode 
-                    ? "bg-white text-black hover:bg-zinc-200 shadow-white/10" 
-                    : "bg-gray-900 text-white hover:bg-gray-800 shadow-black/20"
-                }`}>
-                    <MoveLeft size={18} className="transition-transform group-hover:-translate-x-1" />
-                    Regresar al Inicio
-                    <Home size={18} className="opacity-50" />
-                </button>
-            </Link>
-        </motion.div>
-
-        {/* Decoración de fondo (Luces) */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full -z-10 overflow-hidden rounded-[3rem]">
-            <div className="absolute top-[-20%] left-[-20%] w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px]"></div>
-            <div className="absolute bottom-[-20%] right-[-20%] w-64 h-64 bg-blue-500/20 rounded-full blur-[100px]"></div>
-        </div>
-
-      </motion.div>
-
-      {/* Footer Minimalista */}
-      <div className={`absolute bottom-6 text-center w-full ${isDarkMode ? "text-zinc-600" : "text-gray-500"} text-[10px]`}>
-        &copy; 2025 OmniPart. Todos los derechos reservados.
-      </div>
-    </div>
+            // FILTROS
+            filter={
+              <SpaceBetween direction="horizontal" size="s" alignItems="center">
+                <div style={{ flexGrow: 1, maxWidth: '400px' }}>
+                  <TextFilter
+                    {...filterProps}
+                    filteringPlaceholder="Find instances"
+                    countText={`${filteredItemsCount} coincidencias`}
+                  />
+                </div>
+                <div style={{ width: 200 }}>
+                   <Select
+                      selectedOption={categoryFilter}
+                      onChange={({ detail }) => {
+                          setCategoryFilter(detail.selectedOption);
+                          actions.setFiltering(filterProps.filteringText); 
+                      }}
+                      options={CATEGORY_OPTIONS}
+                      placeholder="Filter engine"
+                      ariaLabel="Categoría"
+                    />
+                </div>
+              </SpaceBetween>
+            }
+            
+            pagination={<Pagination {...paginationProps} />}
+            
+            preferences={
+              <CollectionPreferences
+                title="Preferencias"
+                confirmLabel="Confirmar"
+                cancelLabel="Cancelar"
+                preferences={{ pageSize: 10, visibleContent: ["name", "category", "status", "quantity", "lastUpdated"] }}
+                pageSizePreference={{
+                  title: "Tamaño de página",
+                  options: [
+                    { value: 10, label: "10 recursos" },
+                    { value: 20, label: "20 recursos" }
+                  ]
+                }}
+              />
+            }
+          />
+        }
+      />
+    </>
   );
 }

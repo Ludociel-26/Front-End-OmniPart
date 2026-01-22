@@ -8,7 +8,7 @@ import Verify from "./pages/auth/VerifyEmail";
 import ResetPassword from "./pages/auth/ResetPassword";
 import NotFound from "./pages/auth/NotFound";
 import Dashboard from './pages/auth/dashboard/index'; // Descomenta esto cuando crees el componente Dashboard
-import Inventory from "./pages/auth/table-inventory-items/index"
+import Inventory from "./pages/auth/table-inventory-items/index";
 
 function App() {
   return (

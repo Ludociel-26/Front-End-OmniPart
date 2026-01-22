@@ -1,0 +1,111 @@
+/* 1. BUSCADOR RESPONSIVO */
+.big-search-wrapper {
+  width: 100%;
+  width: 600px;
+  max-width: 100%;
+  position: relative;
+  transition: width 0.3s ease;
+}
+
+@media (min-width: 1200px) {
+  .big-search-wrapper {
+    width: 800px;
+  }
+}
+
+@media (max-width: 600px) {
+  .big-search-wrapper {
+    width: 100%;
+    min-width: 200px;
+  }
+}
+
+/* Hack para forzar estilos en el input interno de Cloudscape */
+.big-search-wrapper [data-awsui-input] {
+  height: 50px !important;
+  font-size: 18px !important;
+  padding-right: 100px !important;
+  border-radius: 8px !important;
+  padding-left: 45px !important;
+}
+
+/* 2. ATAJO (CMD + S) */
+.search-shortcut-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-background-container-content);
+  border: 1px solid var(--color-border-item-focused);
+  border-radius: 6px;
+  color: var(--color-text-body-secondary);
+  font-size: 14px;
+  font-weight: 800;
+  pointer-events: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  z-index: 2;
+}
+
+/* 3. LOADER TIPO ANDROID */
+/* Ocultamos el SVG original del spinner */
+span[data-awsui-icon-name='status-in-progress'] svg {
+  display: none !important;
+}
+
+/* Creamos el círculo giratorio */
+span[data-awsui-icon-name='status-in-progress']::after {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #0972d3;
+  border-left-color: #00a1c9;
+  animation:
+    androidSpin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite,
+    androidPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes androidSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes androidPulse {
+  0% {
+    border-width: 2px;
+    opacity: 0.6;
+  }
+  100% {
+    border-width: 4px;
+    opacity: 1;
+  }
+}
+
+/* 4. AVATAR CIRCULAR */
+span[class*='awsui_icon_'] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+}
+
+button[class*='awsui_button'] img {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 2px solid var(--color-border-divider-default);
+  margin: 0 !important;
+}
