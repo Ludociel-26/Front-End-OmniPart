@@ -1,29 +1,25 @@
 import * as React from 'react';
 import { useContext, useState, useEffect, useRef } from 'react';
 import { AppContent } from '@/context/AppContext';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 import {
   TopNavigation,
   Header,
   SpaceBetween,
-  Grid,
   Cards,
-  Box,
   Icon,
   Button,
   Flashbar,
   Table,
   Container,
+  Grid,
+  Box,
 } from '@cloudscape-design/components';
 
-import { Space } from 'lucide-react';
-
 // ==========================================
-// IMPORTACIÓN DEL LOGO
+// IMPORTA TU FOOTER AQUÍ
 // ==========================================
-import logoQuickFind from '@/assets/icons/appiconf2.png';
+import { Footer } from '@/components/layouts/AppFooter';
 
 // ==========================================
 // DATA IMPORTADA
@@ -31,7 +27,7 @@ import logoQuickFind from '@/assets/icons/appiconf2.png';
 import { m3Sec1Data, m3Sec2Data, SECTIONS } from './mondini3Data';
 
 // ==========================================
-// COMPONENTES UI PERSONALIZADOS (Pantalla Web)
+// COMPONENTES UI PERSONALIZADOS
 // ==========================================
 const SectionTitle = ({
   title,
@@ -43,18 +39,14 @@ const SectionTitle = ({
   isDark: boolean;
 }) => (
   <div
-    style={{
-      marginBottom: '32px',
-      borderBottom: `2px solid ${isDark ? '#414d5c' : '#eaeded'}`,
-      paddingBottom: '16px',
-    }}
+    className="section-title-container"
+    style={{ borderBottom: `2px solid ${isDark ? '#414d5c' : '#eaeded'}` }}
   >
     <h2
+      className="section-title"
       style={{
-        fontSize: '38px',
         fontWeight: '900',
         color: isDark ? '#ffffff' : '#16191f',
-        margin: '0 0 12px 0',
         letterSpacing: '-0.5px',
       }}
     >
@@ -62,12 +54,8 @@ const SectionTitle = ({
     </h2>
     {subtitle && (
       <p
-        style={{
-          fontSize: '18px',
-          color: isDark ? '#aab7b8' : '#545b64',
-          margin: 0,
-          lineHeight: '1.5',
-        }}
+        className="section-subtitle"
+        style={{ color: isDark ? '#aab7b8' : '#545b64' }}
       >
         {subtitle}
       </p>
@@ -78,28 +66,24 @@ const SectionTitle = ({
 const CardCarousel = ({
   images,
   isDark,
+  onExpand,
 }: {
   images: { src: string | null; label: string }[];
   isDark: boolean;
+  onExpand: (imgSrc: string) => void;
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 4000);
+    if (!images || images.length === 0) return;
+    const interval = setInterval(
+      () => setCurrentIndex((prev) => (prev + 1) % images.length),
+      Math.floor(Math.random() * 4000) + 8000,
+    );
     return () => clearInterval(interval);
-  }, [images.length]);
+  }, [images]);
 
-  const nextSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentIndex((prev) => (prev + 1) % images.length);
-  };
-  const prevSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
-
+  if (!images || images.length === 0) return null;
   const currentImage = images[currentIndex];
 
   return (
@@ -107,645 +91,248 @@ const CardCarousel = ({
       style={{
         position: 'relative',
         width: '100%',
-        height: '200px',
+        height: '240px',
         backgroundColor: isDark ? '#232f3e' : '#f8f8f8',
         overflow: 'hidden',
         borderBottom: `1px solid ${isDark ? '#414d5c' : '#eaeded'}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        borderRadius: '8px 8px 0 0',
       }}
     >
       {currentImage.src ? (
         <img
-          key={currentIndex}
+          key={`img-${currentIndex}`}
           src={currentImage.src}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            animation: 'fadeIn 0.5s',
-          }}
+          className="slow-transition-fade"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           alt={currentImage.label}
         />
       ) : (
-        <SpaceBetween
-          key={currentIndex}
-          size="xs"
-          direction="vertical"
-          alignItems="center"
-        >
+        <SpaceBetween size="xs" direction="vertical" alignItems="center">
           <Icon
             name={'camera' as any}
             size="large"
-            variant={isDark ? 'subtle' : 'normal'}
+            variant={(isDark ? 'subtle' : 'normal') as any}
           />
           <span
-            style={{
-              fontSize: '13px',
-              color: isDark ? '#687078' : '#879596',
-              animation: 'fadeIn 0.5s',
-            }}
+            style={{ fontSize: '13px', color: isDark ? '#687078' : '#879596' }}
           >
             Añadir Foto ({currentImage.label})
           </span>
         </SpaceBetween>
       )}
 
+      {currentImage.src && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand(currentImage.src!);
+          }}
+          title="Ver imagen completa"
+          style={{
+            position: 'absolute',
+            bottom: '16px',
+            left: '16px',
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.4)',
+            padding: '8px 12px',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            zIndex: 10,
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <Icon
+            name={'zoom-in' as any}
+            size="normal"
+            variant={'inverted' as any}
+          />
+        </button>
+      )}
+
       <div
         style={{
           position: 'absolute',
-          top: '10px',
-          left: '10px',
-          backgroundColor: 'rgba(0,0,0,0.65)',
+          top: '16px',
+          left: '16px',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           color: '#fff',
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '11px',
+          padding: '6px 14px',
+          borderRadius: '6px',
+          fontSize: '12px',
           fontWeight: 'bold',
         }}
       >
         {currentImage.label}
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '10px',
-          right: '10px',
-          display: 'flex',
-          gap: '4px',
-          backgroundColor: isDark
-            ? 'rgba(22, 25, 31, 0.8)'
-            : 'rgba(255, 255, 255, 0.9)',
-          padding: '4px 8px',
-          borderRadius: '16px',
-        }}
-      >
-        <button
-          onClick={prevSlide}
+      {images.length > 1 && (
+        <div
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: isDark ? '#fff' : '#16191f',
-            cursor: 'pointer',
+            position: 'absolute',
+            bottom: '16px',
+            right: '16px',
             display: 'flex',
-            alignItems: 'center',
-            padding: '2px',
+            gap: '6px',
+            backgroundColor: isDark
+              ? 'rgba(22, 25, 31, 0.85)'
+              : 'rgba(255, 255, 255, 0.95)',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            backdropFilter: 'blur(4px)',
           }}
         >
-          <Icon name={'angle-left' as any} size="small" variant="normal" />
-        </button>
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 'bold',
-            color: isDark ? '#fff' : '#16191f',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          {currentIndex + 1}/{images.length}
-        </span>
-        <button
-          onClick={nextSlide}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: isDark ? '#fff' : '#16191f',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '2px',
-          }}
-        >
-          <Icon name={'angle-right' as any} size="small" variant="normal" />
-        </button>
-      </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentIndex(
+                (prev) => (prev - 1 + images.length) % images.length,
+              );
+            }}
+            className="nav-btn-clear"
+            style={{ color: isDark ? '#fff' : '#16191f' }}
+          >
+            <Icon
+              name={'angle-left' as any}
+              size="small"
+              variant={'normal' as any}
+            />
+          </button>
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: '800',
+              color: isDark ? '#fff' : '#16191f',
+              padding: '0 4px',
+            }}
+          >
+            {currentIndex + 1}/{images.length}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentIndex((prev) => (prev + 1) % images.length);
+            }}
+            className="nav-btn-clear"
+            style={{ color: isDark ? '#fff' : '#16191f' }}
+          >
+            <Icon
+              name={'angle-right' as any}
+              size="small"
+              variant={'normal' as any}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
 // ==========================================
-// MOTOR PDF: PLANTILLA CON TAMAÑO EXACTO A4
+// MOTOR PDF
 // ==========================================
-const A4_WIDTH = 1240;
-const A4_HEIGHT = 1754;
-
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+const PrintTemplate = React.forwardRef<
+  HTMLDivElement,
+  { dataSec1: any[]; dataSec2: any[] }
+>(({ dataSec1, dataSec2 }, ref) => (
   <div
-    className="pdf-page"
+    ref={ref}
     style={{
-      width: `${A4_WIDTH}px`,
-      height: `${A4_HEIGHT}px`,
-      padding: '80px 70px', // Mayor padding general superior e inferior
-      boxSizing: 'border-box',
-      backgroundColor: '#ffffff',
-      position: 'relative',
-      overflow: 'hidden',
+      padding: '40px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#000',
+      backgroundColor: '#fff',
+      width: '100%',
+      maxWidth: '1200px',
     }}
   >
-    {children}
-  </div>
-);
-
-const chunkArray = (arr: any[], size: number) => {
-  const result = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-};
-
-// ==========================================
-// COMPONENTE: PLANTILLA OCULTA PARA PDF
-// ==========================================
-const PrintTemplate = ({
-  dataSec1,
-  dataSec2,
-}: {
-  dataSec1: any[];
-  dataSec2: any[];
-}) => {
-  const allData = [...dataSec1, ...dataSec2];
-  const currentDate = new Date()
-    .toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
-    .split('/')
-    .reverse()
-    .join('-');
-
-  // Optimizando para mayor espaciado. Bajamos a 12 ítems en la Pág 1 para que el Header respire bien.
-  const tablePage1 = allData.slice(0, 12);
-  const tablePage2 = allData.slice(12);
-  // Solo 3 fotos por página para que tengan más espacio vertical
-  const photoChunks = chunkArray(allData, 3);
-
-  // Función reutilizable para renderizar tablas estilo AWS Console (Súper espaciada)
-  const renderAwsTable = (dataChunk: any[]) => (
-    <div
+    <h1
       style={{
-        borderRadius: '8px',
-        border: '1px solid #eaeded',
-        overflow: 'hidden',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        fontSize: '32px',
+        borderBottom: '2px solid #000',
+        paddingBottom: '10px',
       }}
     >
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: '15px',
-          color: '#16191f',
-        }}
-      >
-        <thead
-          style={{
-            backgroundColor: '#fafafa',
-            borderBottom: '2px solid #eaeded',
-          }}
+      Inventario de Protección: Mondini 3
+    </h1>
+    <h2 style={{ fontSize: '24px', marginTop: '30px' }}>
+      Sección 1: Entrada y Dosificación
+    </h2>
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        marginBottom: '40px',
+      }}
+    >
+      <thead>
+        <tr
+          style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #ccc' }}
         >
-          <tr>
-            <th
-              style={{
-                textAlign: 'left',
-                padding: '20px 24px',
-                fontWeight: 'bold',
-                color: '#545b64',
-                width: '25%',
-              }}
-            >
-              ID Físico
-            </th>
-            <th
-              style={{
-                textAlign: 'left',
-                padding: '20px 24px',
-                fontWeight: 'bold',
-                color: '#545b64',
-                width: '35%',
-              }}
-            >
-              Componente Técnico
-            </th>
-            <th
-              style={{
-                textAlign: 'left',
-                padding: '20px 24px',
-                fontWeight: 'bold',
-                color: '#545b64',
-                width: '40%',
-              }}
-            >
-              Instrucción
-            </th>
+          <th style={{ padding: '10px', textAlign: 'left' }}>
+            Componente Técnico
+          </th>
+          <th style={{ padding: '10px', textAlign: 'left' }}>Nombre Físico</th>
+          <th style={{ padding: '10px', textAlign: 'left' }}>Instrucción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dataSec1.map((item, idx) => (
+          <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+            <td style={{ padding: '10px', fontWeight: 'bold' }}>{item.tech}</td>
+            <td style={{ padding: '10px', color: '#555' }}>{item.raw}</td>
+            <td style={{ padding: '10px' }}>{item.desc}</td>
           </tr>
-        </thead>
-        <tbody>
-          {dataChunk.map((item, i) => (
-            <tr
-              key={i}
-              style={{
-                borderBottom: '1px solid #eaeded',
-                backgroundColor: i % 2 === 0 ? '#ffffff' : '#f4f9ff',
-              }}
-            >
-              <td
-                style={{
-                  padding: '18px 24px',
-                  color: '#0972d3',
-                  fontWeight: 'bold',
-                }}
-              >
-                {item.raw}
-              </td>
-              <td style={{ padding: '18px 24px', fontWeight: '600' }}>
-                {item.tech}
-              </td>
-              <td
-                style={{
-                  padding: '18px 24px',
-                  color: '#545b64',
-                  lineHeight: '1.6',
-                }}
-              >
-                {item.desc}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'Arial, sans-serif',
-      }}
-    >
-      {/* =========================================
-          PÁGINA 1: PORTADA, DATOS Y PRIMERA PARTE DE LA TABLA
-          ========================================= */}
-      <PageWrapper>
-        {/* Header con Título Negro y Mayor Separación */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '60px',
-          }}
+        ))}
+      </tbody>
+    </table>
+    <h2 style={{ fontSize: '24px', marginTop: '30px' }}>
+      Sección 2: Sellado, Vacío y Salida
+    </h2>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr
+          style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #ccc' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <img
-              src={logoQuickFind}
-              alt="Logo"
-              style={{ height: '70px', objectFit: 'contain' }}
-            />
-            <h1
-              style={{
-                fontSize: '48px',
-                fontWeight: '900',
-                color: '#16191f',
-                margin: 0,
-                letterSpacing: '-1px',
-                transform: 'translateY(-2px)',
-              }}
-            >
-              QuickFind
-            </h1>
-          </div>
-          <div
-            style={{ textAlign: 'right', fontSize: '16px', color: '#16191f' }}
-          >
-            <div>
-              <strong>Fecha:</strong> {currentDate}
-            </div>
-          </div>
-        </div>
-
-        {/* Barra de OT con más espacio */}
-        <div
-          style={{
-            backgroundColor: '#fbfbfb',
-            border: '1px solid #eaeded',
-            padding: '20px 30px',
-            borderRadius: '8px',
-            fontSize: '18px',
-            color: '#16191f',
-            marginBottom: '50px',
-          }}
-        >
-          QuickFind System -{' '}
-          <span style={{ fontWeight: 'bold', marginLeft: '10px' }}>
-            N°: OT - LOTO - M3
-          </span>
-        </div>
-
-        {/* Bloque de Datos (Más espaciado y elegante) */}
-        <div style={{ display: 'flex', gap: '50px', marginBottom: '60px' }}>
-          <div style={{ flex: 1 }}>
-            <h3
-              style={{
-                fontSize: '18px',
-                fontWeight: 'bold',
-                color: '#545b64',
-                margin: '0 0 20px 0',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-              }}
-            >
-              DATOS GENERALES
-            </h3>
-            <div
-              style={{
-                backgroundColor: '#fbfbfb',
-                border: '1px solid #eaeded',
-                borderRadius: '8px',
-                padding: '30px',
-                fontSize: '15px',
-                lineHeight: '2.8',
-                color: '#16191f',
-              }}
-            >
-              <div>
-                <strong style={{ display: 'inline-block', width: '160px' }}>
-                  Generó:
-                </strong>{' '}
-                ___________________________________
-              </div>
-              <div>
-                <strong style={{ display: 'inline-block', width: '160px' }}>
-                  Duración estimada:
-                </strong>{' '}
-                ___________________________________
-              </div>
-              <div>
-                <strong style={{ display: 'inline-block', width: '160px' }}>
-                  Responsable:
-                </strong>{' '}
-                TÉCNICO DE TURNO
-              </div>
-            </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <h3
-              style={{
-                fontSize: '18px',
-                fontWeight: 'bold',
-                color: '#545b64',
-                margin: '0 0 20px 0',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-              }}
-            >
-              ACTIVOS
-            </h3>
-            <div
-              style={{
-                backgroundColor: '#fbfbfb',
-                border: '1px solid #eaeded',
-                borderRadius: '8px',
-                padding: '30px',
-                fontSize: '15px',
-                lineHeight: '2.8',
-                color: '#16191f',
-              }}
-            >
-              <div>
-                <strong style={{ display: 'inline-block', width: '110px' }}>
-                  Descripción:
-                </strong>{' '}
-                EMPACADORA MONDINI 3 (LÍNEA 3)
-              </div>
-              <div>
-                <strong style={{ display: 'inline-block', width: '110px' }}>
-                  Ubicación:
-                </strong>{' '}
-                ___________________________________
-              </div>
-              <div>
-                <strong style={{ display: 'inline-block', width: '110px' }}>
-                  Prioridad:
-                </strong>{' '}
-                Muy Alta
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Inicio de la Tabla Maestra (Página 1) */}
-        <h3
-          style={{
-            fontSize: '20px',
-            fontWeight: 'bold',
-            color: '#16191f',
-            margin: '0 0 25px 0',
-            textTransform: 'uppercase',
-            borderBottom: '2px solid #16191f',
-            paddingBottom: '10px',
-            display: 'inline-block',
-          }}
-        >
-          LISTADO DE COMPONENTES
-        </h3>
-        {renderAwsTable(tablePage1)}
-      </PageWrapper>
-
-      {/* =========================================
-          PÁGINA 2+: CONTINUACIÓN DE LA TABLA
-          ========================================= */}
-      {tablePage2.length > 0 && (
-        <PageWrapper>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              marginBottom: '50px',
-              borderBottom: '2px solid #eaeded',
-              paddingBottom: '20px',
-            }}
-          >
-            <img
-              src={logoQuickFind}
-              alt="Logo"
-              style={{ height: '45px', objectFit: 'contain' }}
-            />
-            <h3
-              style={{
-                fontSize: '22px',
-                fontWeight: 'bold',
-                color: '#16191f',
-                margin: 0,
-                textTransform: 'uppercase',
-              }}
-            >
-              LISTADO DE COMPONENTES (Cont.)
-            </h3>
-          </div>
-          {renderAwsTable(tablePage2)}
-        </PageWrapper>
-      )}
-
-      {/* =========================================
-          PÁGINAS DE FOTOGRAFÍAS (MUY ESPACIADAS)
-          ========================================= */}
-      {photoChunks.map((chunk, index) => (
-        <PageWrapper key={`photo-page-${index}`}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              marginBottom: '50px',
-              borderBottom: '2px solid #eaeded',
-              paddingBottom: '20px',
-            }}
-          >
-            <img
-              src={logoQuickFind}
-              alt="Logo"
-              style={{ height: '45px', objectFit: 'contain' }}
-            />
-            <h3
-              style={{
-                fontSize: '22px',
-                fontWeight: 'bold',
-                color: '#16191f',
-                margin: 0,
-                textTransform: 'uppercase',
-              }}
-            >
-              EVIDENCIA VISUAL (Pág. {index + 1})
-            </h3>
-          </div>
-
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '60px' }}
-          >
-            {chunk.map((item, idx) => (
-              <div key={idx}>
-                <div
-                  style={{
-                    marginBottom: '20px',
-                    borderBottom: '1px solid #eaeded',
-                    paddingBottom: '12px',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '20px',
-                      fontWeight: 'bold',
-                      color: '#0972d3',
-                    }}
-                  >
-                    {item.raw}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '18px',
-                      color: '#545b64',
-                      marginLeft: '12px',
-                    }}
-                  >
-                    - {item.tech}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '30px', height: '320px' }}>
-                  {item.images.map((img: any, i: number) => (
-                    <div
-                      key={i}
-                      style={{
-                        flex: 1,
-                        backgroundColor: '#fbfbfb',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '8px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '15px',
-                        overflow: 'hidden',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 15,
-                          left: 15,
-                          background: 'rgba(255, 255, 255, 0.95)',
-                          color: '#16191f',
-                          border: '1px solid #d1d5db',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          padding: '8px 16px',
-                          borderRadius: '6px',
-                          zIndex: 2,
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                        }}
-                      >
-                        {img.label}
-                      </div>
-                      {img.src ? (
-                        <img
-                          src={img.src}
-                          alt={img.label}
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '100%',
-                            margin: 'auto',
-                            display: 'block',
-                            borderRadius: '4px',
-                          }}
-                        />
-                      ) : (
-                        <span
-                          style={{
-                            color: '#879596',
-                            fontSize: '16px',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          Fotografía no disponible
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </PageWrapper>
-      ))}
-    </div>
-  );
-};
+          <th style={{ padding: '10px', textAlign: 'left' }}>
+            Componente Técnico
+          </th>
+          <th style={{ padding: '10px', textAlign: 'left' }}>Nombre Físico</th>
+          <th style={{ padding: '10px', textAlign: 'left' }}>Instrucción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dataSec2.map((item, idx) => (
+          <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+            <td style={{ padding: '10px', fontWeight: 'bold' }}>{item.tech}</td>
+            <td style={{ padding: '10px', color: '#555' }}>{item.raw}</td>
+            <td style={{ padding: '10px' }}>{item.desc}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+));
 
 // ==========================================
-// COMPONENTE PRINCIPAL MONDINI 3
+// COMPONENTE PRINCIPAL
 // ==========================================
 export default function Mondini3Details() {
   const context = useContext(AppContent);
-  if (!context) return null;
-  const { isDark } = context;
+  const isDark = context ? context.isDark : false;
 
   const [activeSection, setActiveSection] = useState('intro');
   const [isExporting, setIsExporting] = useState(false);
-
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [flashbarItems, setFlashbarItems] = useState<any[]>([
     {
       type: 'warning',
       dismissible: true,
+      onDismiss: () => setFlashbarItems([]),
       content: (
         <Box fontSize="body-s">
           <strong>Normativa LOTTO:</strong> Desconecte la energía eléctrica
@@ -765,136 +352,104 @@ export default function Mondini3Details() {
     textSecondary: isDark ? '#aab7b8' : '#545b64',
     border: isDark ? '#414d5c' : '#eaeded',
     activeLink: '#0972d3',
+    fabBg: isDark ? '#ffffff' : '#16191f',
+    fabIcon: isDark ? '#16191f' : '#ffffff',
   };
 
   useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `@keyframes fadeIn { from { opacity: 0.4; } to { opacity: 1; } }`;
-    document.head.appendChild(style);
-
     const handleScroll = () => {
-      const scrollPosition = window.scrollY + 250;
-      let currentSection = SECTIONS[0].id;
+      const scrollPosition = window.scrollY + 300;
+      let currentSection = SECTIONS[0]?.id || 'intro';
       for (const section of SECTIONS) {
         const element = document.getElementById(section.id);
-        if (element && element.offsetTop <= scrollPosition) {
+        if (element && element.offsetTop <= scrollPosition)
           currentSection = section.id;
-        }
       }
       setActiveSection(currentSection);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      document.head.removeChild(style);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToSection = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
-      const offset = 180;
-      const elementPosition =
-        element.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+      window.scrollTo({
+        top: element.getBoundingClientRect().top + window.scrollY - 100,
+        behavior: 'smooth',
+      });
     }
   };
 
-  // ==========================================
-  // FUNCIÓN: EXPORTAR A PDF
-  // ==========================================
   const handleExportPDF = async () => {
     if (!printContainerRef.current) return;
     setIsExporting(true);
-
     try {
-      const canvas = await html2canvas(printContainerRef.current, {
-        scale: 1.2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-
-      const pages =
-        printContainerRef.current.querySelectorAll('.pdf-page').length;
-      const totalPdfHeight = pages * pdfHeight;
-
-      for (let i = 0; i < pages; i++) {
-        if (i > 0) pdf.addPage();
-        pdf.addImage(
-          imgData,
-          'JPEG',
-          0,
-          -(i * pdfHeight),
-          pdfWidth,
-          totalPdfHeight,
-        );
-      }
-
-      pdf.save(
-        `Reporte_QuickFind_Mondini3_${new Date().toISOString().split('T')[0]}.pdf`,
-      );
-
-      setFlashbarItems((prev) => [
-        {
-          type: 'success',
-          dismissible: true,
-          content:
-            'El PDF corporativo se ha generado al instante y sin cortes.',
-          id: `success_${new Date().getTime()}`,
-        },
-        ...prev,
-      ]);
-    } catch (error) {
-      console.error('Error al generar el PDF:', error);
-      setFlashbarItems((prev) => [
-        {
-          type: 'error',
-          dismissible: true,
-          content: 'Ocurrió un error al generar el PDF.',
-          id: `error_${new Date().getTime()}`,
-        },
-        ...prev,
-      ]);
-    } finally {
+      const script = document.createElement('script');
+      script.src =
+        'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      document.body.appendChild(script);
+      script.onload = () => {
+        const opt = {
+          margin: 0.5,
+          filename: 'Mondini3_Inventario.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+        };
+        (window as any)
+          .html2pdf()
+          .set(opt)
+          .from(printContainerRef.current)
+          .save()
+          .then(() => {
+            setIsExporting(false);
+            document.body.removeChild(script);
+          });
+      };
+    } catch {
       setIsExporting(false);
     }
   };
 
   const renderCards = (data: any[]) => (
     <Cards
+      // Ajuste drástico: Fuerza 1 tarjeta por fila en todo lo menor a 700px.
       cardsPerRow={[
         { cards: 1 },
-        { minWidth: 600, cards: 2 },
-        { minWidth: 900, cards: 3 },
+        { minWidth: 700, cards: 2 },
+        { minWidth: 1100, cards: 3 },
       ]}
       cardDefinition={{
         header: (item) => (
-          <div style={{ fontSize: '16px', fontWeight: '800' }}>{item.tech}</div>
+          <div
+            className="card-title"
+            style={{ fontSize: '17px', fontWeight: '900' }}
+          >
+            {item.tech}
+          </div>
         ),
         sections: [
           {
-            id: 'carousel',
+            id: 'img',
             content: (item) => (
-              <CardCarousel images={item.images} isDark={isDark} />
+              <CardCarousel
+                images={item.images}
+                isDark={isDark}
+                onExpand={setSelectedImage}
+              />
             ),
           },
           {
             id: 'desc',
             content: (item) => (
               <span
+                className="card-desc"
                 style={{
                   fontSize: '14px',
-                  lineHeight: '1.4',
                   display: 'block',
-                  marginTop: '4px',
+                  marginTop: '12px',
                 }}
               >
                 {item.desc}
@@ -904,15 +459,24 @@ export default function Mondini3Details() {
           {
             id: 'raw',
             content: (item) => (
-              <span
+              <div
                 style={{
-                  fontSize: '12px',
-                  color: '#879596',
-                  fontFamily: 'monospace',
+                  marginTop: '8px',
+                  paddingTop: '12px',
+                  borderTop: `1px solid ${colors.border}`,
                 }}
               >
-                Físico: {item.raw}
-              </span>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    color: '#879596',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  Físico: {item.raw}
+                </span>
+              </div>
             ),
           },
         ],
@@ -927,10 +491,254 @@ export default function Mondini3Details() {
         minHeight: '100vh',
         backgroundColor: colors.bgPage,
         color: colors.textMain,
-        fontFamily:
-          '"Amazon Ember", "Helvetica Neue", Roboto, Arial, sans-serif',
+        overflowX: 'hidden' /* EVITAR OVERFLOW HORIZONTAL A NIVEL ROOT */,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
+      <style>{`
+        @keyframes slowFadeIn { 0% { opacity: 0.3; filter: blur(4px); } 100% { opacity: 1; filter: blur(0); } }
+        .slow-transition-fade { animation: slowFadeIn 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .nav-btn-clear { background: transparent; border: none; cursor: pointer; display: flex; align-items: center; padding: 4px; border-radius: 4px; }
+        .nav-btn-clear:hover { background-color: rgba(0,0,0,0.1); }
+        
+        /* LAYOUT FLEXBOX ESTRICTO PARA PREVENIR QUE SE EXPANDAN LOS HIJOS (TABLAS) */
+        .flex-container { 
+          display: flex; flex-direction: row; max-width: 1400px; margin: 0 auto; 
+          padding: 60px 40px; gap: 60px; align-items: flex-start; flex-grow: 1; 
+          width: 100%; box-sizing: border-box; 
+        }
+        .flex-content { 
+          flex: 1 1 0%; /* El 0% es magia para evitar el desborde flex */
+          min-width: 0; /* Crucial para responsividad */
+          width: 100%; 
+          max-width: 100vw;
+          box-sizing: border-box; 
+        }
+        .flex-sidebar { width: 280px; flex-shrink: 0; position: sticky; top: 120px; border-left: 1px solid ${colors.border}; padding-left: 40px; }
+        
+        .section-wrap { margin-bottom: 120px; width: 100%; }
+        .hero-title { font-size: 40px !important; line-height: 1.3 !important; margin-bottom: 20px !important; }
+        .hero-desc { font-size: 18px !important; line-height: 1.6 !important; margin-top: 12px !important; }
+        .hero-header-wrap { padding: 50px 40px 60px 40px; position: relative; }
+        
+        .section-title-container { margin-bottom: 40px !important; padding-bottom: 20px !important; }
+        .section-title { font-size: 34px !important; line-height: 1.3 !important; margin-bottom: 16px !important; }
+        
+        .mobile-fab { display: none !important; }
+
+        /* =========================================
+           ANIMACIONES ELEGANTES DEL MENÚ MÓVIL
+        ========================================= */
+        .mobile-menu-overlay { 
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+          background: rgba(10, 15, 20, 0.95); backdrop-filter: blur(16px); 
+          z-index: 10005; display: flex; flex-direction: column; padding: 50px 30px; 
+          opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        .mobile-menu-overlay.open { opacity: 1; pointer-events: auto; }
+
+        .close-menu-btn {
+          background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+          width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          color: #ffffff !important; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .close-menu-btn:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
+
+        .mobile-menu-item { opacity: 0; transform: translateY(-20px); transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .mobile-menu-overlay.open .mobile-menu-item { opacity: 1; transform: translateY(0); }
+        .mobile-menu-overlay.open .mobile-menu-item:nth-child(1) { transition-delay: 0.1s; }
+        .mobile-menu-overlay.open .mobile-menu-item:nth-child(2) { transition-delay: 0.15s; }
+        .mobile-menu-overlay.open .mobile-menu-item:nth-child(3) { transition-delay: 0.2s; }
+        .mobile-menu-overlay.open .mobile-menu-item:nth-child(4) { transition-delay: 0.25s; }
+        .mobile-menu-overlay.open .mobile-menu-item:nth-child(5) { transition-delay: 0.3s; }
+
+        .mobile-link { transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.3s ease; display: block; padding: 12px 0; }
+        .mobile-link:hover { transform: translateX(12px); color: #ffffff !important; }
+
+        @media screen and (max-width: 1080px) {
+          .flex-sidebar { display: none !important; }
+          .flex-container { padding: 30px 15px; flex-direction: column; gap: 0; overflow-x: hidden; }
+          .section-wrap { margin-bottom: 80px; }
+          
+          .hero-header-wrap { padding: 30px 20px 40px 20px !important; }
+          .hero-title { font-size: 28px !important; line-height: 1.4 !important; margin-bottom: 12px !important; display: block !important; }
+          .hero-desc { font-size: 15px !important; line-height: 1.6 !important; margin-top: 12px !important; margin-bottom: 24px !important; }
+          
+          .section-title-container { margin-bottom: 30px !important; padding-bottom: 15px !important; }
+          .section-title { font-size: 24px !important; line-height: 1.4 !important; margin-bottom: 8px !important; display: block !important; }
+          
+          /* BOTÓN FLOTANTE DINÁMICO (Ocultable) */
+          .mobile-fab { 
+            display: flex !important; position: fixed !important; bottom: 80px !important; right: 24px !important;
+            width: 52px !important; height: 52px !important; border-radius: 50% !important;
+            background-color: ${colors.fabBg} !important; color: ${colors.fabIcon} !important; 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; z-index: 99999 !important; 
+            cursor: pointer !important; align-items: center !important; justify-content: center !important;
+            border: 1px solid rgba(128,128,128,0.2) !important;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s !important;
+          }
+          .mobile-fab.hidden { transform: scale(0) !important; opacity: 0 !important; pointer-events: none !important; }
+        }
+      `}</style>
+
+      {/* Menú Móvil Modal Premium */}
+      <div className={`mobile-menu-overlay ${showMobileMenu ? 'open' : ''}`}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '50px',
+          }}
+        >
+          <h2
+            style={{
+              color: '#ffffff',
+              margin: 0,
+              fontSize: '26px',
+              fontWeight: '900',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            Menú Rápido
+          </h2>
+          <button
+            className="close-menu-btn"
+            onClick={() => setShowMobileMenu(false)}
+            aria-label="Cerrar menú"
+          >
+            <Icon
+              name={'close' as any}
+              size="normal"
+              variant={'inherit' as any}
+            />
+          </button>
+        </div>
+
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, flexGrow: 1 }}>
+          {SECTIONS.map((section) => (
+            <li
+              key={`mob-${section.id}`}
+              className="mobile-menu-item"
+              style={{ marginBottom: '16px' }}
+            >
+              <a
+                href={`#${section.id}`}
+                className="mobile-link"
+                onClick={(e) => {
+                  scrollToSection(e, section.id);
+                  setShowMobileMenu(false);
+                }}
+                style={{
+                  color: activeSection === section.id ? '#44b9d6' : '#aab7b8',
+                  fontSize: '22px',
+                  textDecoration: 'none',
+                  fontWeight: activeSection === section.id ? '900' : '500',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
+                {section.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+
+        <div
+          className="mobile-menu-item"
+          style={{ paddingBottom: '30px', transitionDelay: '0.4s' }}
+        >
+          <Button
+            iconName={'status-warning' as any}
+            variant={'primary' as any}
+            fullWidth
+          >
+            Levantar Ticket de Falla
+          </Button>
+        </div>
+      </div>
+
+      {/* BOTÓN FLOTANTE (FAB) */}
+      <button
+        className={`mobile-fab ${showMobileMenu ? 'hidden' : ''}`}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowMobileMenu(true);
+        }}
+      >
+        <svg
+          style={{ pointerEvents: 'none' }}
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+
+      {/* Lightbox */}
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100000,
+            backgroundColor: 'rgba(10,15,20,0.95)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <button
+            style={{
+              position: 'absolute',
+              top: '25px',
+              right: '25px',
+              background: 'rgba(255,255,255,0.15)',
+              border: '2px solid rgba(255,255,255,0.4)',
+              borderRadius: '50%',
+              width: '56px',
+              height: '56px',
+              color: 'white',
+              cursor: 'pointer',
+              zIndex: 10001,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <Icon
+              name={'close' as any}
+              size="large"
+              variant={'inherit' as any}
+            />
+          </button>
+          <img
+            src={selectedImage}
+            alt="Expandida"
+            style={{
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              borderRadius: '20px',
+              objectFit: 'contain',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Nav Superior */}
       <div style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}>
         <TopNavigation
           identity={{ href: '/cleaning-plan', title: 'Atrás: Menú Principal' }}
@@ -939,301 +747,375 @@ export default function Mondini3Details() {
       </div>
 
       <div style={{ backgroundColor: colors.bgHeader, width: '100%' }}>
-        <div
-          style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}
-        >
-          <div style={{ paddingTop: '20px' }}>
-            <Flashbar items={flashbarItems} />
-          </div>
-
-          <div style={{ padding: '30px 0 50px 0', color: '#ffffff' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          {flashbarItems.length > 0 && (
+            <div
+              style={{
+                paddingTop: '24px',
+                paddingLeft: '20px',
+                paddingRight: '20px',
+              }}
+            >
+              <Flashbar items={flashbarItems as any} />
+            </div>
+          )}
+          <div className="hero-header-wrap" style={{ color: '#ffffff' }}>
             <nav
               aria-label="Breadcrumb"
-              style={{ marginBottom: '16px', fontSize: '14px' }}
+              style={{ marginBottom: '24px', fontSize: '15px' }}
             >
               <span style={{ color: '#879596' }}>Plan de Limpieza</span>{' '}
-              <span style={{ margin: '0 8px', color: '#879596' }}>/</span>{' '}
-              <span style={{ color: '#fbfbfb' }}>Línea Mondini 3</span>
+              <span style={{ margin: '0 12px', color: '#879596' }}>/</span>{' '}
+              <span style={{ color: '#fbfbfb', fontWeight: 'bold' }}>
+                Línea Mondini 3
+              </span>
             </nav>
-
             <Grid
               gridDefinition={[
-                { colspan: { default: 12, s: 8 } },
-                { colspan: { default: 12, s: 4 } },
+                { colspan: { default: 12, l: 8 } },
+                { colspan: { default: 12, l: 4 } },
               ]}
             >
               <div>
                 <h1
-                  style={{
-                    fontSize: '40px',
-                    fontWeight: '900',
-                    margin: '0 0 16px 0',
-                    color: '#ffffff',
-                    letterSpacing: '-0.5px',
-                  }}
+                  className="hero-title"
+                  style={{ fontWeight: '900', color: '#ffffff' }}
                 >
                   Inventario de Protección: Mondini 3
                 </h1>
                 <p
-                  style={{
-                    fontSize: '18px',
-                    lineHeight: '28px',
-                    color: '#d1d5db',
-                    maxWidth: '800px',
-                    marginBottom: '24px',
-                  }}
+                  className="hero-desc"
+                  style={{ color: '#d1d5db', maxWidth: '850px' }}
                 >
                   Catálogo visual detallado. Compare el estado físico de cada
-                  componente con su correcto aislamiento antes de inyectar agua.
+                  componente con su correcto aislamiento antes de inyectar agua
+                  a presión.
                 </p>
               </div>
-              <Box float="right">
+              <div className="btn-download-wrap">
                 <Button
-                  variant="primary"
-                  iconName="download"
+                  variant={'primary' as any}
+                  iconName={'download' as any}
                   loading={isExporting}
                   onClick={handleExportPDF}
                 >
                   Descargar PDF de Línea 3
                 </Button>
-              </Box>
+              </div>
             </Grid>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-container">
+        <div className="flex-content">
+          <div id="intro" className="section-wrap">
+            <SectionTitle
+              title="Propósito de Intervención"
+              subtitle="Minimización de riesgos operativos y eléctricos durante el saneamiento."
+              isDark={isDark}
+            />
+            <div
+              className="intro-text"
+              style={{
+                fontSize: '18px',
+                lineHeight: '1.8',
+                color: colors.textMain,
+              }}
+            >
+              <p>
+                La arquitectura de la empacadora <strong>Mondini 3</strong>{' '}
+                presenta componentes de muy alta sensibilidad en su zona de
+                tracción y en los sistemas de bloqueos de seguridad integrados.
+              </p>
+              <p style={{ color: colors.textSecondary }}>
+                Este protocolo detalla paso a paso el procedimiento innegociable
+                para proteger la instrumentación clave. El incumplimiento de
+                estas directrices puede resultar en fallas de arranque
+                catastróficas y retrasos severos en la línea de producción.
+              </p>
+            </div>
+          </div>
+
+          <div id="tabla" className="section-wrap">
+            <SectionTitle
+              title="Inventario Completo"
+              subtitle="Checklist tabular para una revisión rápida."
+              isDark={isDark}
+            />
+            <SpaceBetween size="xl">
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 1: Entrada y Dosificación
+                    </span>
+                  </Header>
+                }
+              >
+                {/* ENVOLTORIO FLEXIBLE ESTRICTO PARA LAS TABLAS */}
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'tech',
+                        header: 'Componente Técnico',
+                        cell: (e) => (
+                          <span
+                            style={{ fontSize: '14px', fontWeight: 'bold' }}
+                          >
+                            {e.tech}
+                          </span>
+                        ),
+                        minWidth: 200,
+                      },
+                      {
+                        id: 'raw',
+                        header: 'Nombre Físico',
+                        cell: (e) => (
+                          <span style={{ color: '#879596', fontSize: '13px' }}>
+                            {e.raw}
+                          </span>
+                        ),
+                        minWidth: 160,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Cuidado',
+                        cell: (e) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 280,
+                      },
+                    ]}
+                    items={m3Sec1Data}
+                    stripedRows
+                  />
+                </div>
+              </Container>
+
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 2: Sellado, Vacío y Salida
+                    </span>
+                  </Header>
+                }
+              >
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'tech',
+                        header: 'Componente Técnico',
+                        cell: (e) => (
+                          <span
+                            style={{ fontSize: '14px', fontWeight: 'bold' }}
+                          >
+                            {e.tech}
+                          </span>
+                        ),
+                        minWidth: 200,
+                      },
+                      {
+                        id: 'raw',
+                        header: 'Nombre Físico',
+                        cell: (e) => (
+                          <span style={{ color: '#879596', fontSize: '13px' }}>
+                            {e.raw}
+                          </span>
+                        ),
+                        minWidth: 160,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Cuidado',
+                        cell: (e) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 280,
+                      },
+                    ]}
+                    items={m3Sec2Data}
+                    stripedRows
+                  />
+                </div>
+              </Container>
+            </SpaceBetween>
+          </div>
+
+          <div id="sec1" className="section-wrap">
+            <SectionTitle
+              title="Mondini 3 - Sección 1"
+              subtitle="Inspección detallada de Componentes de Entrada y Sistemas de Dosificación de Jarabe."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              {renderCards(m3Sec1Data)}
+            </div>
+          </div>
+
+          <div id="sec2" className="section-wrap">
+            <SectionTitle
+              title="Mondini 3 - Sección 2"
+              subtitle="Revisión exhaustiva de Componentes en la Zona de Sellado, Vacío y Salida de Producto."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              {renderCards(m3Sec2Data)}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-sidebar">
+          <div
+            className="sticky-nav-inner"
+            style={{ position: 'sticky', top: '120px' }}
+          >
+            <SpaceBetween size="xxl">
+              <div>
+                <h3
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: '900',
+                    marginBottom: '20px',
+                    color: colors.textMain,
+                    letterSpacing: '-0.5px',
+                  }}
+                >
+                  Navegación
+                </h3>
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    borderLeft: `3px solid ${colors.border}`,
+                  }}
+                >
+                  {SECTIONS.map((section) => (
+                    <li key={section.id} style={{ margin: 0 }}>
+                      <a
+                        href={`#${section.id}`}
+                        onClick={(e) => scrollToSection(e, section.id)}
+                        style={{
+                          display: 'block',
+                          padding: '10px 20px',
+                          textDecoration: 'none',
+                          fontSize: '15px',
+                          color:
+                            activeSection === section.id
+                              ? colors.activeLink
+                              : colors.textSecondary,
+                          fontWeight:
+                            activeSection === section.id ? '800' : '500',
+                          borderLeft:
+                            activeSection === section.id
+                              ? `3px solid ${colors.activeLink}`
+                              : '3px solid transparent',
+                          marginLeft: '-3px',
+                          transition: 'all 0.2s ease',
+                          backgroundColor:
+                            activeSection === section.id
+                              ? isDark
+                                ? 'rgba(9, 114, 211, 0.1)'
+                                : 'rgba(9, 114, 211, 0.05)'
+                              : 'transparent',
+                        }}
+                      >
+                        {section.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div
+                style={{
+                  height: '2px',
+                  backgroundColor: colors.border,
+                  width: '50%',
+                }}
+              ></div>
+              <div>
+                <h3
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: '800',
+                    marginBottom: '16px',
+                    color: colors.textMain,
+                  }}
+                >
+                  ¿Problemas en el equipo?
+                </h3>
+                <p
+                  style={{
+                    fontSize: '14px',
+                    color: colors.textSecondary,
+                    marginBottom: '20px',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  Si detecta sellos rotos, cables expuestos o humedad interna,
+                  detenga el lavado de inmediato.
+                </p>
+                <Button iconName={'status-warning' as any} fullWidth>
+                  Levantar Ticket Urgente
+                </Button>
+              </div>
+            </SpaceBetween>
           </div>
         </div>
       </div>
 
       <div
         style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '60px 40px',
-          color: colors.textMain,
+          position: 'absolute',
+          top: '-9999px',
+          left: '-9999px',
+          zIndex: -10,
         }}
       >
-        <Grid
-          gridDefinition={[
-            { colspan: { default: 12, s: 9, m: 10 } },
-            { colspan: { default: 12, s: 3, m: 2 } },
-          ]}
-        >
-          <div style={{ paddingRight: '40px' }}>
-            <div id="intro" style={{ marginBottom: '80px' }}>
-              <SectionTitle
-                title="Propósito de Intervención"
-                subtitle="Minimización de riesgos operativos y eléctricos."
-                isDark={isDark}
-              />
-              <div
-                style={{
-                  fontSize: '18px',
-                  lineHeight: '1.6',
-                  color: colors.textMain,
-                }}
-              >
-                <p>
-                  La arquitectura de la empacadora <strong>Mondini 3</strong>{' '}
-                  presenta componentes de muy alta sensibilidad en su zona de
-                  tracción y bloqueos de seguridad. Este protocolo detalla el
-                  procedimiento innegociable para proteger instrumentación
-                  clave, garantizando que no se generen micro-cortos o
-                  descalibraciones por filtración de agua a presión.
-                </p>
-                <Space></Space>
-                <p style={{ color: colors.textSecondary }}>
-                  Preste especial atención al{' '}
-                  <strong>Sensor de Enclavamiento (color naranja)</strong> y a
-                  los <strong>motores de accionamiento (azul y plata)</strong>{' '}
-                  debajo del tablero. Utilice las tablas de abajo y los
-                  carruseles de las tarjetas para verificar el estado desnudo vs
-                  aislado.
-                </p>
-              </div>
-            </div>
-
-            <div id="tabla" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Inventario Completo"
-                subtitle="Checklist tabular de componentes divididos por sección operativa."
-                isDark={isDark}
-              />
-              <SpaceBetween size="xl">
-                <Container
-                  header={
-                    <Header variant="h2">
-                      Sección 1: Entrada y Dosificación
-                    </Header>
-                  }
-                >
-                  <Table
-                    variant="embedded"
-                    columnDefinitions={[
-                      {
-                        id: 'tech',
-                        header: 'Componente Técnico',
-                        cell: (e) => e.tech,
-                      },
-                      {
-                        id: 'raw',
-                        header: 'Nombre Físico/Planta',
-                        cell: (e) => (
-                          <span style={{ color: '#879596' }}>{e.raw}</span>
-                        ),
-                      },
-                      {
-                        id: 'desc',
-                        header: 'Instrucción de Aislamiento',
-                        cell: (e) => e.desc,
-                      },
-                    ]}
-                    items={m3Sec1Data}
-                    stripedRows
-                  />
-                </Container>
-
-                <Container
-                  header={
-                    <Header variant="h2">Sección 2: Sellado y Salida</Header>
-                  }
-                >
-                  <Table
-                    variant="embedded"
-                    columnDefinitions={[
-                      {
-                        id: 'tech',
-                        header: 'Componente Técnico',
-                        cell: (e) => e.tech,
-                      },
-                      {
-                        id: 'raw',
-                        header: 'Nombre Físico/Planta',
-                        cell: (e) => (
-                          <span style={{ color: '#879596' }}>{e.raw}</span>
-                        ),
-                      },
-                      {
-                        id: 'desc',
-                        header: 'Instrucción de Aislamiento',
-                        cell: (e) => e.desc,
-                      },
-                    ]}
-                    items={m3Sec2Data}
-                    stripedRows
-                  />
-                </Container>
-              </SpaceBetween>
-            </div>
-
-            <div id="sec1" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Mondini 3 - Sección 1"
-                subtitle="Componentes de Entrada y Dosificación de Jarabe."
-                isDark={isDark}
-              />
-              {renderCards(m3Sec1Data)}
-            </div>
-
-            <div id="sec2" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Mondini 3 - Sección 2"
-                subtitle="Componentes de Zona de Sellado y Salida."
-                isDark={isDark}
-              />
-              {renderCards(m3Sec2Data)}
-            </div>
-          </div>
-
-          <div
-            style={{ height: '100%', borderLeft: `1px solid ${colors.border}` }}
-          >
-            <div
-              style={{ position: 'sticky', top: '120px', paddingLeft: '20px' }}
-            >
-              <SpaceBetween size="l">
-                <div>
-                  <h3
-                    style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      marginBottom: '10px',
-                      color: colors.textMain,
-                    }}
-                  >
-                    Navegación
-                  </h3>
-                  <ul
-                    style={{
-                      listStyle: 'none',
-                      padding: 0,
-                      margin: 0,
-                      borderLeft: `2px solid ${colors.border}`,
-                    }}
-                  >
-                    {SECTIONS.map((section) => (
-                      <li key={section.id} style={{ margin: 0 }}>
-                        <a
-                          href={`#${section.id}`}
-                          onClick={(e) => scrollToSection(e, section.id)}
-                          style={{
-                            display: 'block',
-                            padding: '6px 16px',
-                            textDecoration: 'none',
-                            fontSize: '14px',
-                            color:
-                              activeSection === section.id
-                                ? colors.activeLink
-                                : colors.textSecondary,
-                            fontWeight:
-                              activeSection === section.id ? '700' : '400',
-                            borderLeft:
-                              activeSection === section.id
-                                ? `2px solid ${colors.activeLink}`
-                                : '2px solid transparent',
-                            marginLeft: '-2px',
-                            transition: 'all 0.1s',
-                          }}
-                        >
-                          {section.text}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div
-                  style={{ height: '1px', backgroundColor: colors.border }}
-                ></div>
-
-                <div>
-                  <h3
-                    style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      marginBottom: '10px',
-                      color: colors.textMain,
-                    }}
-                  >
-                    ¿Reportar falla?
-                  </h3>
-                  <Button iconName={'status-warning' as any}>
-                    Levantar Ticket
-                  </Button>
-                </div>
-              </SpaceBetween>
-            </div>
-          </div>
-        </Grid>
+        <PrintTemplate
+          ref={printContainerRef}
+          dataSec1={m3Sec1Data}
+          dataSec2={m3Sec2Data}
+        />
       </div>
 
-      {/* ========================================================
-          CONTENEDOR OCULTO PARA EXPORTACIÓN PDF
-      ======================================================== */}
-      <div
-        style={{ position: 'absolute', top: 0, left: '-9999px', zIndex: -1 }}
-      >
-        <div ref={printContainerRef}>
-          <PrintTemplate dataSec1={m3Sec1Data} dataSec2={m3Sec2Data} />
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }
