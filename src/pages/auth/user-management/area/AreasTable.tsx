@@ -27,7 +27,7 @@ import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
 // 👇 AQUÍ IMPORTAS TU IMAGEN LOCAL (Ajusta la ruta y el nombre del archivo) 👇
-import emptyStateImage from '@/assets/robot-empty.png';
+import emptyStateImage from '@/assets/table-items/robot-empty.svg';
 
 // --- ESTILOS CSS ---
 const awsStyles = `
@@ -288,9 +288,13 @@ export default function AreasTable() {
           else setLoading(true);
         }
 
-        const response = await axios.get(`${backendUrl}/api/levelArea`, {
-          withCredentials: true,
-        });
+        const response = await axios.get(
+          `${backendUrl}/api/levelArea`,
+          // ``
+          {
+            withCredentials: true,
+          },
+        );
 
         if (response.data.success) {
           if (isMounted.current) {
@@ -355,6 +359,7 @@ export default function AreasTable() {
     try {
       await axios.put(
         `${backendUrl}/api/levelArea/${item.area_id}`,
+        // ''
         { [column.id]: newValue },
         { withCredentials: true },
       );

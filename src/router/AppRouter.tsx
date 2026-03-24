@@ -123,6 +123,18 @@ const VisualComparator = React.lazy(
   () => import('@/pages/auth/almacén/visual-comparator/ImageComparator'),
 );
 
+const SupplierItem = React.lazy(
+  () => import('@/pages/auth/almacén/provider/ProveedorItem'),
+);
+
+const LocationsItem = React.lazy(
+  () => import('@/pages/auth/almacén/locations/UbicacionItem'),
+);
+
+const UsesforSpareParts = React.lazy(
+  () => import('@/pages/auth/almacén/UsesforSpareParts/UsesforSpareParts'),
+);
+
 const InfoSystem = React.lazy(() => import('@/pages/auth/about/index'));
 
 const Services = React.lazy(() => import('@/pages/auth/services/index'));
@@ -432,6 +444,30 @@ const AppRouter = () => {
             element={
               <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
                 <VisualComparator />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/supplier-item"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <SupplierItem />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/locations-item"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <LocationsItem />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory/uses-for-spare-parts"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <UsesforSpareParts />
               </ProtectedRoute>
             }
           />

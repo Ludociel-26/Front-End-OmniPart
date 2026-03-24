@@ -34,7 +34,7 @@ export default function GlobalSidebar() {
         items={[
           {
             type: 'link',
-            text: 'Dashboard',
+            text: 'Panel',
             href: '/dashboard',
           },
           { type: 'divider' },
@@ -290,7 +290,7 @@ export default function GlobalSidebar() {
           // ==========================================
           {
             type: 'expandable-link-group',
-            text: 'Configuración',
+            text: 'Administración',
             href: '/admin',
             items: [
               {
@@ -335,7 +335,7 @@ export default function GlobalSidebar() {
               },
               {
                 type: 'link',
-                text: 'Información del Sistema',
+                text: 'Configuración',
                 href: '/admin/info',
               },
             ],

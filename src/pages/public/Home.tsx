@@ -1,58 +1,78 @@
-// FIX: Quitamos "React" de la importación
-import { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+// FIX: Importación de ReactNode como tipo
+import type { ReactNode } from 'react';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+
+// CLOUDSCAPE IMPORTS
+import TopNavigation from '@cloudscape-design/components/top-navigation';
+import Button from '@cloudscape-design/components/button';
+
+// LUCIDE ICONS (Depurados 100%)
+// FIX: Se eliminaron Layers y BoxIcon porque no se estaban utilizando
 import {
-  Search,
-  ChevronDown,
-  Code,
-  Terminal,
-  Play,
-  Shield,
+  ScanLine,
+  Camera,
+  Activity,
   Zap,
+  ShieldCheck,
+  BrainCircuit,
+  Cloud,
+  ClipboardCheck,
+  Gauge,
+  Snowflake,
+  Flame,
+  Server,
+  FlaskConical,
+  Scan,
+  Network,
+  Database,
   CheckCircle2,
-  Lock,
-  GitPullRequest,
+  Focus,
+  Crosshair,
+  Infinity as InfinityIcon,
+  Sparkles,
+  Code,
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DE ANIMACIONES ---
-
-// Animación de flotación continua (bucle infinito)
-// FIX: Tipamos explícitamente como "any" para saltar la validación estricta de framer-motion
-const floatLoop: any = {
-  y: [-10, 10, -10],
-  rotate: [0, 5, -5, 0],
-  transition: {
-    duration: 6,
-    repeat: Infinity,
-    ease: 'easeInOut',
-  },
+// --- ANIMACIONES BASE ---
+const pulseGlow = {
+  opacity: [0.3, 1, 0.3],
+  scale: [1, 1.2, 1],
+  transition: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
 };
 
-// Animación de surgimiento (La "Invocación" desde abajo)
-// FIX: Tipamos el retorno de la función como "any"
-const surgeVariant = (delay: number, xOffset: number = 0): any => ({
-  hidden: {
-    y: 300,
-    x: xOffset,
-    opacity: 0,
-    scale: 0.4,
-  },
-  visible: {
-    y: 0,
-    x: 0,
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 1.8,
-      ease: [0.16, 1, 0.3, 1],
-      delay: delay,
-    },
-  },
+const floatAnim = (delay = 0, distance = 10) => ({
+  y: [-distance, distance, -distance],
+  transition: { duration: 6, repeat: Infinity, ease: 'easeInOut', delay },
 });
 
-// --- COMPONENTES UI ---
+// --- COMPONENTE HELPER: SCROLL REVEAL ---
+const ScrollReveal = ({
+  children,
+  delay = 0,
+  className = '',
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-50px' });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
+      animate={isInView ? { opacity: 1, y: 0, filter: 'blur(0px)' } : {}}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
-const Navbar = () => {
+// --- 1. NAVEGACIÓN ---
+const QuickFindNav = () => {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -61,567 +81,878 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-[#0d1117]/80 backdrop-blur-xl border-b border-white/10 py-3' : 'bg-transparent py-6'}`}
+    <div
+      className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${scrolled ? 'bg-[#000000]/80 backdrop-blur-2xl border-white/10' : 'bg-transparent border-transparent'}`}
     >
-      <div className="container mx-auto px-6 flex items-center justify-between text-white">
-        <div className="flex items-center gap-6">
-          <a href="#" className="hover:text-white/70 transition-colors">
-            <svg
-              height="32"
-              viewBox="0 0 16 16"
-              width="32"
-              className="fill-current"
-            >
-              <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
-            </svg>
-          </a>
-          <div className="hidden md:flex gap-6 font-semibold text-[15px]">
-            {['Product', 'Solutions', 'Open Source', 'Pricing'].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="hover:text-gray-300 transition-colors"
-              >
-                {item}
-              </a>
-            ))}
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-3">
-          <div className="flex items-center bg-[#24292f] border border-gray-600 rounded-md px-2 py-1 transition-all focus-within:border-white focus-within:w-64 w-56">
-            <Search size={14} className="text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Search or jump to..."
-              className="bg-transparent border-none outline-none text-sm text-white w-full placeholder-gray-500 h-6"
-            />
-            <span className="border border-gray-600 rounded px-1.5 text-[10px] text-gray-400 ml-1">
-              /
-            </span>
-          </div>
-          <a
-            href="#/login"
-            className="text-sm font-semibold hover:text-gray-300 px-2"
-          >
-            Sign in
-          </a>
-          <a
-            href="#/login"
-            className="border border-white/70 rounded-md px-3 py-1.5 text-sm font-semibold hover:border-white hover:bg-white/10 transition-all"
-          >
-            Sign up
-          </a>
-        </div>
-      </div>
-    </nav>
+      <TopNavigation
+        identity={{
+          href: '#',
+          title: 'QuickFind',
+          logo: {
+            src: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMgN3YyYTMgMyAwIDAgMCAzIDNoM20tNi01YTMgMyAwIDAgMSAzLTNoM20wIDE0SDZhMyAzIDAgMCAxLTMtM3YtMm0xMiA1aDNhMyAzIDAgMCAwIDMtM3YtMm0tNS0xMGgzYTMgMyAwIDAgMSAzIDN2MiIvPjwvc3ZnPg==',
+            alt: 'Logo',
+          },
+        }}
+        utilities={[
+          {
+            type: 'button',
+            text: 'Protocolo de Limpieza',
+            variant: 'link',
+            href: '#/cleaning-plan-page',
+          },
+          {
+            type: 'button',
+            text: 'Telemetría',
+            variant: 'link',
+            href: '#/maintenance/perform-inspection',
+          },
+          {
+            type: 'button',
+            text: 'Consola Admin',
+            variant: 'primary-button',
+            href: '#/login',
+          },
+        ]}
+      />
+    </div>
   );
 };
 
-// --- COMPONENTE: MASCOTAS Y HAZ DE LUZ ---
-const MascotsAndGlow = () => {
+// --- 2. SCANNER AVANZADO (VECTORIZACIÓN) ---
+const AdvancedVectorScanner = () => {
+  const { scrollYProgress } = useScroll();
+  const hudY1 = useTransform(scrollYProgress, [0, 1], [0, -30]);
+  const hudY2 = useTransform(scrollYProgress, [0, 1], [0, 30]);
+
   return (
-    <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-visible">
-      {/* 1. EL HAZ DE LUZ CENTRAL (THE BEAM) */}
+    <div className="w-full max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10 perspective-[1500px]">
+      {/* PANEL PRINCIPAL: CÁMARA */}
       <motion.div
-        initial={{ height: '0%', opacity: 0 }}
-        animate={{ height: '130%', opacity: 0.8 }}
-        transition={{ duration: 1.5, ease: 'easeOut' }}
-        className="absolute bottom-[-10%] left-1/2 -translate-x-1/2 w-[600px] bg-gradient-to-t from-[#7c3aed]/40 via-[#3b82f6]/10 to-transparent blur-[80px] mix-blend-screen"
-      />
+        initial={{ opacity: 0, rotateY: 15, z: -100 }}
+        animate={{ opacity: 1, rotateY: 0, z: 0 }}
+        transition={{ duration: 1.2, ease: 'easeOut' }}
+        className="col-span-1 lg:col-span-2 relative bg-[#020508] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,161,201,0.15)] h-[550px]"
+      >
+        <div className="absolute top-0 w-full flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/60 backdrop-blur-xl z-30">
+          <div className="flex items-center gap-4">
+            <div className="flex gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+            </div>
+            <span className="text-xs font-mono text-[#00a1c9] flex items-center gap-2">
+              <Camera size={14} /> LIVE_FEED_01 (OPTICAL + IR)
+            </span>
+          </div>
+          <div className="px-3 py-1 rounded-full border border-[#6aaf35]/50 text-[#6aaf35] text-[10px] font-mono flex items-center gap-2 bg-[#6aaf35]/10">
+            <div className="w-1.5 h-1.5 bg-[#6aaf35] rounded-full animate-ping"></div>{' '}
+            PROCESSING
+          </div>
+        </div>
 
-      {/* Luz focal en la base */}
-      <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 1, delay: 0.2 }}
-        className="absolute bottom-[10%] left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-[#a855f7]/50 blur-[60px] rounded-full mix-blend-screen"
-      />
+        <div className="relative w-full h-full flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#00a1c9]/15 via-black to-black overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,161,201,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,161,201,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-60"></div>
 
-      {/* 2. ESTRELLAS / PARTÍCULAS QUE SUBEN */}
-      {[...Array(8)].map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ y: 600, x: (Math.random() - 0.5) * 300, opacity: 0 }}
-          animate={{ y: -200, opacity: [0, 1, 0] }}
-          transition={{
-            duration: 2 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 1.5,
-            ease: 'easeOut',
-          }}
-          className="absolute bottom-0 left-1/2 w-1 h-1 bg-white rounded-full blur-[1px] shadow-[0_0_10px_white]"
-        />
-      ))}
+          <motion.div
+            // FIX: as any para que Framer Motion no se queje del tipado estricto
+            animate={floatAnim(0, 15) as any}
+            className="relative z-10 w-full h-full flex items-center justify-center"
+          >
+            <div className="relative w-[300px] h-[300px] flex items-center justify-center">
+              <svg
+                viewBox="0 0 200 200"
+                className="w-full h-full opacity-90 drop-shadow-[0_0_15px_rgba(0,161,201,0.4)]"
+              >
+                <motion.path
+                  d="M100 20 L160 50 L160 150 L100 180 L40 150 L40 50 Z"
+                  fill="none"
+                  stroke="#00a1c9"
+                  strokeWidth="1.5"
+                  strokeDasharray="5 5"
+                  animate={{ strokeDashoffset: [0, -100] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                />
+                <path
+                  d="M100 20 L100 100 L160 150 M40 50 L100 100 M40 150 L100 100 M160 50 L100 100"
+                  fill="none"
+                  stroke="#00a1c9"
+                  strokeWidth="0.5"
+                  opacity="0.4"
+                />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="30"
+                  fill="none"
+                  stroke="#00a1c9"
+                  strokeWidth="1"
+                />
+                <motion.circle
+                  cx="100"
+                  cy="20"
+                  r="4"
+                  fill="#ff9900"
+                  // FIX: as any para el tipado estricto
+                  animate={pulseGlow as any}
+                />
+                <motion.circle
+                  cx="160"
+                  cy="150"
+                  r="4"
+                  fill="#6aaf35"
+                  // FIX: as any para el tipado estricto
+                  animate={pulseGlow as any}
+                />
+                <motion.circle
+                  cx="40"
+                  cy="50"
+                  r="4"
+                  fill="#00a1c9"
+                  // FIX: as any para el tipado estricto
+                  animate={pulseGlow as any}
+                />
+              </svg>
 
-      {/* 3. LOS ELEMENTOS FLOTANTES */}
-      <div className="relative w-full max-w-[1400px] mx-auto h-full">
-        {/* -- OCTOCAT (Izquierda) -- */}
-        <motion.div
-          variants={surgeVariant(0.2, 150)}
-          initial="hidden"
-          animate="visible"
-          className="absolute top-[28%] left-[5%] lg:left-[8%] w-32 h-32 md:w-40 md:h-40 z-10"
-        >
-          <motion.div animate={floatLoop} className="w-full h-full">
-            <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-[#6366f1]/40 to-[#3b82f6]/10 backdrop-blur-md border border-white/20 shadow-[0_0_60px_rgba(99,102,241,0.3)] relative overflow-hidden transform rotate-12">
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20"></div>
-              {/* Ojos Robot */}
-              <div className="absolute top-[35%] left-[25%] flex gap-4">
-                <div className="w-3 h-3 bg-cyan-300 rounded-full shadow-[0_0_15px_cyan] animate-pulse"></div>
-                <div className="w-3 h-3 bg-cyan-300 rounded-full shadow-[0_0_15px_cyan] animate-pulse"></div>
+              <div className="absolute inset-[-30px] border border-[#00a1c9]/40 bg-[#00a1c9]/5">
+                <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-[#00a1c9]"></div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-[#00a1c9]"></div>
+                <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-[#00a1c9]"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-[#00a1c9]"></div>
+
+                <motion.div
+                  animate={{ x: [-90, 90, -90], y: [-70, 70, -70] }}
+                  transition={{
+                    duration: 8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                  className="absolute z-20 top-1/2 left-1/2 text-[#00a1c9] opacity-80"
+                >
+                  <Crosshair
+                    size={60}
+                    strokeWidth={0.5}
+                    className="-translate-x-1/2 -translate-y-1/2"
+                  />
+                </motion.div>
+
+                <motion.div
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{
+                    duration: 3.5,
+                    repeat: Infinity,
+                    ease: 'linear',
+                  }}
+                  className="absolute left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00a1c9] to-transparent shadow-[0_0_20px_#00a1c9]"
+                />
               </div>
             </div>
-          </motion.div>
-        </motion.div>
 
-        {/* -- ESFERA (Arriba Derecha) -- */}
-        <motion.div
-          variants={surgeVariant(0.4, -100)}
-          initial="hidden"
-          animate="visible"
-          className="absolute top-[18%] right-[5%] lg:right-[15%] w-20 h-20 md:w-28 md:h-28 z-10"
-        >
-          <motion.div animate={floatLoop} className="w-full h-full">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-[#ec4899]/40 to-[#db2777]/10 backdrop-blur-md border border-white/20 shadow-[0_0_50px_rgba(236,72,153,0.3)] relative">
-              <div className="absolute top-3 right-5 w-6 h-6 bg-white/30 rounded-full blur-md"></div>
-            </div>
-          </motion.div>
-        </motion.div>
+            <motion.div
+              style={{ y: hudY1 }}
+              className="absolute top-[20%] left-[8%] bg-black/80 border border-[#00a1c9]/40 p-3 rounded-lg text-xs font-mono text-white backdrop-blur-xl shadow-2xl"
+            >
+              <span className="text-[#00a1c9] font-bold text-sm">
+                ID: VALVE_PRO_X9
+              </span>
+              <br />
+              <span className="text-gray-400">
+                STATE: <span className="text-white">SCANNED</span>
+              </span>
+              <br />
+              <span className="text-gray-400">
+                MATCH: <span className="text-[#6aaf35] font-bold">99.98%</span>
+              </span>
+            </motion.div>
 
-        {/* -- PATO (Abajo Derecha) -- */}
-        <motion.div
-          variants={surgeVariant(0.6, -120)}
-          initial="hidden"
-          animate="visible"
-          className="absolute top-[55%] right-[8%] lg:right-[10%] w-24 h-24 md:w-32 md:h-32 z-10"
-        >
-          <motion.div animate={floatLoop} className="w-full h-full">
-            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#f59e0b]/40 to-[#d97706]/10 backdrop-blur-md border border-white/20 shadow-[0_0_40px_rgba(245,158,11,0.3)] transform -rotate-[20deg]">
-              <div className="absolute bottom-3 -left-1 w-6 h-6 bg-orange-500/50 rounded-full blur-sm"></div>
-              <div className="absolute top-1/2 -right-2 w-4 h-4 bg-orange-500/80 rounded-full"></div>
-            </div>
+            <motion.div
+              style={{ y: hudY2 }}
+              className="absolute bottom-[20%] right-[5%] bg-black/80 border border-[#ff9900]/40 p-3 rounded-lg text-xs font-mono text-white backdrop-blur-xl shadow-2xl"
+            >
+              <span className="text-[#ff9900] font-bold flex items-center gap-1">
+                <Zap size={12} /> ANOMALY FLAG
+              </span>
+              <br />
+              <span className="text-gray-400">TYPE: WEAR_TEAR</span>
+              <br />
+              <span className="text-gray-400">
+                CONFIDENCE: <span className="text-yellow-500">87.5%</span>
+              </span>
+            </motion.div>
           </motion.div>
+        </div>
+      </motion.div>
+
+      {/* PANEL DERECHO: MAPA DINO */}
+      <motion.div
+        initial={{ opacity: 0, rotateY: -15, z: -100 }}
+        animate={{ opacity: 1, rotateY: 0, z: 0 }}
+        transition={{ duration: 1.2, delay: 0.2, ease: 'easeOut' }}
+        className="col-span-1 relative bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden h-[550px] flex flex-col p-5"
+      >
+        <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+          <div className="flex items-center gap-2 text-white">
+            <Scan size={16} className="text-purple-400" />
+            <span className="text-sm font-bold tracking-tight">
+              DINO Attention Map
+            </span>
+          </div>
+          <Activity size={14} className="text-[#6aaf35] animate-pulse" />
+        </div>
+
+        <div className="flex-1 relative bg-black rounded-xl border border-white/5 flex flex-col items-center justify-center overflow-hidden p-4">
+          <svg
+            width="100%"
+            height="100%"
+            className="absolute inset-0 opacity-50"
+          >
+            <motion.path
+              d="M 0 50 Q 150 0 0 250"
+              fill="none"
+              stroke="#a855f7"
+              strokeWidth="1.5"
+              animate={{
+                d: [
+                  'M 0 50 Q 150 0 0 250',
+                  'M 0 50 Q -50 150 0 250',
+                  'M 0 50 Q 150 0 0 250',
+                ],
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.path
+              d="M 250 50 Q 50 0 250 250"
+              fill="none"
+              stroke="#00a1c9"
+              strokeWidth="1.5"
+              animate={{
+                d: [
+                  'M 250 50 Q 50 0 250 250',
+                  'M 250 50 Q 300 150 250 250',
+                  'M 250 50 Q 50 0 250 250',
+                ],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: 0.5,
+              }}
+            />
+          </svg>
+
+          <div className="grid grid-cols-5 grid-rows-6 gap-2 w-full h-full opacity-90 relative z-10">
+            {[...Array(30)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="w-full h-full rounded flex items-center justify-center"
+                animate={{
+                  backgroundColor:
+                    Math.random() > 0.6
+                      ? 'rgba(168,85,247,0.3)'
+                      : 'rgba(0,161,201,0.1)',
+                }}
+                transition={{
+                  duration: 1 + Math.random() * 2,
+                  repeat: Infinity,
+                }}
+              >
+                <div
+                  className={`w-1 h-1 rounded-full ${Math.random() > 0.5 ? 'bg-purple-300' : 'bg-[#00a1c9]'}`}
+                ></div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="absolute bottom-4 w-[90%] font-mono text-[10px] text-gray-300 bg-black/90 p-3 rounded-lg border border-white/10 backdrop-blur-xl">
+            <div className="flex justify-between mb-1.5">
+              <span className="text-purple-400 font-bold">Vector Space</span>
+              <span>1024_DIMS</span>
+            </div>
+            <div className="flex justify-between mb-1.5">
+              <span>Attention_Heads</span>
+              <span className="text-[#00a1c9]">12/12</span>
+            </div>
+            <div className="flex justify-between border-t border-white/10 pt-1.5">
+              <span>Sync_Status</span>
+              <span className="text-[#6aaf35] font-bold">AWS_RDS_OK</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- 3. NUEVO: STACK TECNOLÓGICO (SVGs GIGANTES Y REALISTAS) ---
+const ReactLogo = () => (
+  <svg
+    width="48"
+    height="48"
+    viewBox="-11.5 -10.23174 23 20.46348"
+    className="animate-[spin_10s_linear_infinite]"
+  >
+    <circle cx="0" cy="0" r="2.05" fill="#61dafb" />
+    <g stroke="#61dafb" strokeWidth="1" fill="none">
+      <ellipse rx="11" ry="4.2" />
+      <ellipse rx="11" ry="4.2" transform="rotate(60)" />
+      <ellipse rx="11" ry="4.2" transform="rotate(120)" />
+    </g>
+  </svg>
+);
+
+const AwsLogo = () => (
+  <svg
+    width="60"
+    height="48"
+    viewBox="0 0 100 60"
+    fill="none"
+    className="text-[#FF9900]"
+  >
+    <path
+      d="M60.6,35.5c-6.8,4.7-16.7,7.7-26.6,7.7c-11.8,0-21.7-4-28.7-9.5c-1-0.8-2.4-0.6-3.2,0.4c-0.8,1-0.6,2.4,0.4,3.2c8.2,6.5,19.6,11.2,32.8,11.2c11.3,0,22.2-3.4,29.9-8.7c1.1-0.7,1.4-2.2,0.6-3.3C64.9,35.3,63.4,35,60.6,35.5z"
+      fill="currentColor"
+    />
+    <path
+      d="M68.8,31.7c-0.6-0.6-1.5-0.6-2.1,0c-1.3,1.3-3.6,2.1-5.7,2.1c-0.8,0-1.5,0.7-1.5,1.5c0,0.8,0.7,1.5,1.5,1.5c3.2,0,6.6-1.3,8.7-3.4C70.3,32.8,70.3,32.2,68.8,31.7z"
+      fill="currentColor"
+    />
+    <text
+      x="5"
+      y="25"
+      fill="#fff"
+      fontSize="28"
+      fontWeight="bold"
+      fontFamily="sans-serif"
+    >
+      AWS
+    </text>
+  </svg>
+);
+
+const TechStackMarquee = () => {
+  const stack = [
+    {
+      name: 'React',
+      icon: <ReactLogo />,
+      color: 'text-[#61DAFB]',
+      border: 'border-[#61DAFB]/40',
+    },
+    {
+      name: 'DINOv2',
+      icon: <BrainCircuit size={48} />,
+      color: 'text-purple-400',
+      border: 'border-purple-400/40',
+    },
+    {
+      name: 'Node.js',
+      icon: <Cloud size={48} />,
+      color: 'text-[#339933]',
+      border: 'border-[#339933]/40',
+    },
+    {
+      name: 'AWS Serverless',
+      icon: <AwsLogo />,
+      color: 'text-[#FF9900]',
+      border: 'border-[#FF9900]/40',
+    },
+    {
+      name: 'PostgreSQL',
+      icon: <Database size={48} />,
+      color: 'text-[#336791]',
+      border: 'border-[#336791]/40',
+    },
+    {
+      name: 'JWT Auth',
+      icon: <ShieldCheck size={48} />,
+      color: 'text-pink-500',
+      border: 'border-pink-500/40',
+    },
+  ];
+
+  return (
+    <div className="py-8 border-b border-white/5 bg-[#020508] relative z-20 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020508] via-transparent to-[#020508] z-10 w-full pointer-events-none"></div>
+
+      <div className="flex w-fit">
+        <motion.div
+          animate={{ x: ['0%', '-50%'] }}
+          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          className="flex gap-8 px-4"
+        >
+          {[...stack, ...stack].map((tech, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-5 bg-black/60 border ${tech.border} px-8 py-5 rounded-2xl backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)] whitespace-nowrap hover:scale-105 transition-transform cursor-pointer`}
+            >
+              <div
+                className={`${tech.color} drop-shadow-[0_0_10px_currentColor]`}
+              >
+                {tech.icon}
+              </div>
+              <span className="text-gray-100 font-bold font-mono text-xl tracking-wide">
+                {tech.name}
+              </span>
+            </div>
+          ))}
         </motion.div>
       </div>
     </div>
   );
 };
 
-// --- COMPONENTE: EDITOR HERO ---
-const HeroEditor = () => {
+// --- 4. DINO NEURAL MODEL ---
+const DinoModelSection = () => {
   return (
-    <motion.div
-      initial={{ y: 200, opacity: 0, scale: 0.95 }}
-      animate={{ y: 0, opacity: 1, scale: 1 }}
-      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
-      className="relative w-full max-w-[1248px] mx-auto mt-20 z-20 perspective-[2000px]"
+    <section
+      id="dino"
+      className="py-32 relative z-10 bg-black border-t border-white/5 overflow-hidden"
     >
-      {/* GLOW TRASERO */}
-      <div className="absolute -inset-[1px] bg-gradient-to-r from-[#7c3aed] via-[#2563eb] to-[#db2777] rounded-2xl blur-sm opacity-50"></div>
+      <div className="container mx-auto px-6 max-w-[1200px]">
+        <ScrollReveal>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="px-3 py-1 rounded-full border border-purple-500/30 bg-purple-950/20 text-purple-300 text-xs font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+              <FlaskConical size={14} /> Representación Autosupervisada
+            </div>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-8">
+            DINO Neural Engine: <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-[#00a1c9] to-[#6aaf35]">
+              Aprende sin límites.
+            </span>
+          </h2>
+          <p className="text-xl text-gray-400 mb-20 max-w-3xl leading-relaxed">
+            Nuestra IA no necesita etiquetas manuales. Utilizando DINO
+            (Self-Distillation with No Labels), la red comprende la estructura
+            profunda de tus inventarios analizando correspondencias semánticas
+            entre millones de recortes.
+          </p>
+        </ScrollReveal>
 
-      {/* VENTANA PRINCIPAL */}
-      <div className="relative bg-[#0d1117]/40 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px]">
-        {/* Barra Superior Ventana */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#161b22]/40">
-          <div className="flex gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#ff5f56]/80"></div>
-            <div className="w-3 h-3 rounded-full bg-[#ffbd2e]/80"></div>
-            <div className="w-3 h-3 rounded-full bg-[#27c93f]/80"></div>
+        <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div className="hidden md:block absolute top-1/2 left-[45%] w-[10%] h-[2px] bg-white/10 transform -translate-y-1/2 z-0 overflow-hidden">
+            <motion.div
+              className="w-full h-full bg-gradient-to-r from-purple-500 to-[#6aaf35]"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+            />
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-md border border-white/10 bg-[#0d1117]/30 text-xs text-gray-400 font-mono">
-            <Code size={12} className="text-blue-400" />
-            mona-cat/sky-walker-game
-          </div>
+
+          <ScrollReveal delay={0.2} className="z-10">
+            <div className="bg-[#050505] border border-purple-500/20 p-8 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.05)] hover:border-purple-500/50 transition-colors">
+              <div className="w-14 h-14 rounded-xl bg-purple-950/40 border border-purple-500/40 flex items-center justify-center mb-6">
+                <Server className="text-purple-400" size={28} />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">
+                Red Maestro (Teacher)
+              </h3>
+              <p className="text-gray-400 leading-relaxed mb-6">
+                Mantiene un promedio exponencial de los pesos. Genera
+                representaciones estables de alto nivel de las piezas
+                industriales.
+              </p>
+              <div className="w-full bg-black rounded p-3 border border-white/10 font-mono text-xs text-purple-300 flex items-center gap-2">
+                <Focus size={14} /> Target Output Generated
+              </div>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.4} className="z-10">
+            <div className="bg-[#050505] border border-[#6aaf35]/20 p-8 rounded-2xl shadow-[0_0_50px_rgba(106,175,53,0.05)] hover:border-[#6aaf35]/50 transition-colors">
+              <div className="w-14 h-14 rounded-xl bg-[#6aaf35]/10 border border-[#6aaf35]/40 flex items-center justify-center mb-6">
+                <BrainCircuit className="text-[#6aaf35]" size={28} />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">
+                Red Alumno (Student)
+              </h3>
+              <p className="text-gray-400 leading-relaxed mb-6">
+                Procesa vistas distorsionadas y recortadas de la misma pieza,
+                ajustando sus pesos para coincidir con las predicciones del
+                Maestro.
+              </p>
+              <div className="w-full bg-black rounded p-3 border border-white/10 font-mono text-xs text-[#6aaf35] flex items-center gap-2">
+                <Zap size={14} /> Parameters Updated
+              </div>
+            </div>
+          </ScrollReveal>
         </div>
+      </div>
+    </section>
+  );
+};
 
-        {/* Contenido Interior */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Panel Izquierdo (Código) */}
-          <div className="flex-1 p-8 font-mono text-[15px] leading-8 text-gray-300 relative">
-            <div className="absolute top-0 left-0 w-full h-12 bg-gradient-to-b from-[#0d1117]/30 to-transparent z-10"></div>
-            <div className="flex gap-6">
-              <div className="flex flex-col text-right text-gray-600 select-none w-8">
-                {Array.from({ length: 18 }).map((_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              <div className="flex-1">
-                <p>
-                  <span className="text-[#ff7b72]">import</span>{' '}
-                  <span className="text-[#d2a8ff]">kaboom</span>{' '}
-                  <span className="text-[#ff7b72]">from</span>{' '}
-                  <span className="text-[#a5d6ff]">"kaboom"</span>;
-                </p>
-                <p className="mt-4">
-                  <span className="text-[#8b949e]">// Initialize context</span>
-                </p>
-                <p>
-                  <span className="text-[#d2a8ff]">kaboom</span>();
-                </p>
-                <p className="mt-4">
-                  <span className="text-[#8b949e]">// Load assets</span>
-                </p>
-                <p>
-                  <span className="text-[#d2a8ff]">loadSprite</span>(
-                  <span className="text-[#a5d6ff]">"bean"</span>,{' '}
-                  <span className="text-[#a5d6ff]">"sprites/bean.png"</span>);
-                </p>
-                <p>
-                  <span className="text-[#d2a8ff]">loadSprite</span>(
-                  <span className="text-[#a5d6ff]">"ghosty"</span>,{' '}
-                  <span className="text-[#a5d6ff]">"sprites/ghosty.png"</span>);
-                </p>
-
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  transition={{ delay: 2, duration: 0.8 }}
-                  className="mt-6 relative"
-                >
-                  <div className="absolute -left-4 top-0 bottom-0 w-1 bg-[#238636]"></div>
-                  <p className="text-gray-400 opacity-60">
-                    <span className="text-[#d2a8ff]">const</span> player ={' '}
-                    <span className="text-[#d2a8ff]">add</span>([
-                    <br />
-                    &nbsp;&nbsp;<span className="text-[#d2a8ff]">sprite</span>(
-                    <span className="text-[#a5d6ff]">"bean"</span>),
-                    <br />
-                    &nbsp;&nbsp;<span className="text-[#d2a8ff]">pos</span>(80,
-                    40),
-                    <br />
-                    &nbsp;&nbsp;<span className="text-[#d2a8ff]">area</span>(),
-                    <br />
-                    ]);
-                  </p>
-                </motion.div>
-              </div>
+// --- 5. MULTI-SERVICIOS ---
+const MultiServiceEcosystem = () => {
+  return (
+    <section
+      id="ecosystem"
+      className="py-32 relative bg-[#020508] border-t border-white/5 overflow-hidden"
+    >
+      <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+        <ScrollReveal>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="px-3 py-1 rounded-full border border-[#ff9900]/30 bg-[#ff9900]/10 text-[#ff9900] text-xs font-mono flex items-center gap-2">
+              <Network size={14} /> Plataforma Unificada
             </div>
           </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
+            Más allá de la visión. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff9900] to-[#ff4400]">
+              Control total de infraestructura.
+            </span>
+          </h2>
+          <p className="text-xl text-gray-400 mb-16 max-w-3xl leading-relaxed">
+            QuickFind OS se integra con redes de sensores IoT. Un solo dashboard
+            para telemetría crítica y automatización de compliance sanitario.
+          </p>
+        </ScrollReveal>
 
-          {/* Panel Derecho (Chat Copilot) */}
-          <div className="hidden lg:flex w-[380px] border-l border-white/10 bg-[#161b22]/20 backdrop-blur-md flex-col">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between text-white text-sm font-semibold">
-              <div className="flex items-center gap-2">
-                <Terminal size={14} /> GitHub Copilot
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <ScrollReveal delay={0.2}>
+            <div className="bg-[#050505] border border-white/10 rounded-2xl p-8 h-full relative overflow-hidden group hover:border-[#ff9900]/50 transition-colors">
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#ff9900]/5 rounded-full blur-3xl group-hover:bg-[#ff9900]/20 transition-all"></div>
+              <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="w-14 h-14 rounded-xl bg-black border border-white/10 flex items-center justify-center text-[#ff9900] shadow-lg">
+                  <Gauge size={28} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white tracking-tight">
+                    Telemetría IoT
+                  </h3>
+                  <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">
+                    Sensores Vivos
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="flex-1 p-5 space-y-4">
-              <div className="self-end bg-[#1f6feb] text-white p-3 rounded-xl rounded-tr-sm text-sm shadow-lg ml-8">
-                How do I implement gravity for the player?
-              </div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1 }}
-                className="self-start bg-[#24292f]/80 border border-white/10 text-gray-300 p-4 rounded-xl rounded-tl-sm text-sm shadow-lg mr-4"
-              >
-                To add gravity, you can use the <code>body()</code> component in
-                your player definition.
-              </motion.div>
-            </div>
-            <div className="p-4 border-t border-white/10">
-              <div className="relative">
-                <input
-                  className="w-full bg-[#0d1117]/50 border border-gray-600 rounded-lg py-2.5 px-4 text-sm text-white focus:border-blue-500 outline-none shadow-inner"
-                  placeholder="Ask Copilot..."
-                />
-                <div className="absolute right-3 top-3 text-gray-500">
-                  <Play size={14} />
+              <div className="space-y-4 relative z-10 font-mono text-sm">
+                <div className="bg-black border border-white/5 rounded-xl p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Snowflake className="text-[#00a1c9]" size={22} />
+                    <div>
+                      <div className="text-gray-300 font-medium">
+                        Cuarto Frío A
+                      </div>
+                    </div>
+                  </div>
+                  <motion.span
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="text-2xl font-bold text-[#00a1c9]"
+                  >
+                    -18.4°C
+                  </motion.span>
+                </div>
+                <div className="bg-black border border-white/5 rounded-xl p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Flame className="text-[#ff4400]" size={22} />
+                    <div>
+                      <div className="text-gray-300 font-medium">
+                        Caldera Main
+                      </div>
+                    </div>
+                  </div>
+                  <motion.span
+                    animate={{ opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-2xl font-bold text-[#ff4400]"
+                  >
+                    124 PSI
+                  </motion.span>
                 </div>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.4}>
+            <div className="bg-[#050505] border border-white/10 rounded-2xl p-8 h-full relative overflow-hidden group hover:border-[#00a1c9]/50 transition-colors">
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#00a1c9]/5 rounded-full blur-3xl group-hover:bg-[#00a1c9]/20 transition-all"></div>
+              <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="w-14 h-14 rounded-xl bg-black border border-white/10 flex items-center justify-center text-[#00a1c9] shadow-lg">
+                  <ClipboardCheck size={28} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white tracking-tight">
+                    Compliance & Sanidad
+                  </h3>
+                  <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">
+                    Auditoría Automática
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-3 font-mono text-sm relative z-10 text-gray-400">
+                {[
+                  {
+                    text: 'Desinfección Línea A',
+                    time: '08:00 AM',
+                    status: 'DONE',
+                  },
+                  {
+                    text: 'Purgado Válvulas',
+                    time: '10:30 AM',
+                    status: 'DONE',
+                  },
+                  {
+                    text: 'Inspección Filtros',
+                    time: '14:00 PM',
+                    status: 'PENDING',
+                  },
+                ].map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-4 bg-black rounded-lg border border-white/5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center ${item.status === 'DONE' ? 'bg-[#6aaf35]' : 'border border-gray-600'}`}
+                      >
+                        {item.status === 'DONE' && (
+                          <CheckCircle2 size={14} className="text-black" />
+                        )}
+                      </div>
+                      <span
+                        className={
+                          item.status === 'DONE'
+                            ? 'line-through text-gray-600'
+                            : 'text-gray-200'
+                        }
+                      >
+                        {item.text}
+                      </span>
+                    </div>
+                    <span className="text-xs">{item.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ScrollReveal>
         </div>
       </div>
-    </motion.div>
+    </section>
   );
 };
 
-// --- SECCIONES DE CONTENIDO EXTRA ---
+// --- 6. CAPACIDADES ---
+const CapabilitiesSection = () => {
+  const items = [
+    {
+      name: 'Alta Disponibilidad',
+      desc: 'Clústers redundantes aseguran operación continua sin interrupciones. 99.99% SLA garantizado.',
+      icon: <ShieldCheck className="text-[#6aaf35]" size={28} />,
+    },
+    {
+      name: 'Inferencia Local Edge',
+      desc: 'Modelos CV vectorizan localmente reduciendo latencia a <20ms y conservando ancho de banda.',
+      icon: <Zap className="text-[#ff9900]" size={28} />,
+    },
+    {
+      name: 'Sincronización Cloud',
+      desc: 'Integración nativa bidireccional con SAP, Oracle, Dynamics y bases de datos AWS RDS.',
+      icon: <InfinityIcon className="text-[#00a1c9]" size={28} />,
+    },
+  ];
 
-const Productivity = () => (
-  <section className="py-32 bg-[#0d1117] relative z-10">
-    <div className="container mx-auto px-6 max-w-7xl">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="p-1 rounded border border-green-500/50 text-green-400">
-          <Zap size={20} />
-        </div>
-        <span className="text-xl font-medium text-white">Productivity</span>
-      </div>
-      <h2 className="text-5xl md:text-7xl font-bold text-white mb-16 max-w-4xl leading-tight">
-        Accelerate your <span className="text-green-400">entire workflow</span>
-      </h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="h-[600px] bg-[#161b22] rounded-3xl border border-white/10 overflow-hidden relative group hover:border-green-500/50 transition-all duration-500">
-          <div className="p-10 relative z-10">
-            <h3 className="text-3xl font-bold text-white mb-2">
-              GitHub Copilot
-            </h3>
-            <p className="text-xl text-gray-400">
-              The world's most widely adopted AI developer tool.
+  return (
+    <section className="py-32 relative z-10 bg-black border-t border-white/5 overflow-hidden">
+      <motion.div
+        // FIX: as any para Framer Motion
+        animate={floatAnim(1, 20) as any}
+        className="absolute top-[10%] right-[-100px] w-[600px] h-[600px] opacity-10 pointer-events-none z-0"
+      >
+        <svg width="100%" height="100%" viewBox="0 0 100 100">
+          <path
+            d="M50,5 L95,25 L95,75 L50,95 L5,75 L5,25 Z"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="0.2"
+            strokeDasharray="1,1"
+          />
+          <path
+            d="M50,5 L50,95 M5,25 L95,75 M5,75 L95,25"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="0.1"
+          />
+        </svg>
+      </motion.div>
+
+      <div className="max-w-[1200px] mx-auto px-6 relative z-10">
+        <ScrollReveal>
+          <div className="mb-16">
+            <h2 className="text-white text-4xl md:text-5xl font-bold tracking-tight mb-4">
+              Arquitectura Enterprise
+            </h2>
+            <p className="text-xl text-gray-400 max-w-2xl">
+              Diseñada estrictamente para los rigores, escalas y tolerancias a
+              fallos de la logística industrial y manufactura.
             </p>
           </div>
-          <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-green-900/20 to-transparent"></div>
-          <div className="absolute top-1/2 left-10 right-10 bottom-0 bg-[#0d1117] rounded-t-xl border-t border-x border-white/10 p-6 shadow-2xl group-hover:-translate-y-4 transition-transform duration-500">
-            <div className="h-3 w-1/3 bg-gray-700 rounded mb-4"></div>
-            <div className="h-3 w-2/3 bg-green-500/40 rounded"></div>
-          </div>
-        </div>
-        <div className="h-[600px] bg-[#161b22] rounded-3xl border border-white/10 overflow-hidden relative group hover:border-green-500/50 transition-all duration-500">
-          <div className="p-10 relative z-10">
-            <h3 className="text-3xl font-bold text-white mb-2">
-              GitHub Actions
-            </h3>
-            <p className="text-xl text-gray-400">
-              Automate your workflow from idea to production.
-            </p>
-          </div>
-          <div className="absolute bottom-10 left-0 w-full flex justify-center gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="w-16 h-16 rounded-xl bg-[#238636]/20 border border-green-500/30 flex items-center justify-center text-green-400 backdrop-blur-sm"
-              >
-                <CheckCircle2 />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-);
+        </ScrollReveal>
 
-const Security = () => (
-  <section className="py-32 bg-[#0d1117] relative z-10">
-    <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-      <div className="absolute top-40 left-0 w-[600px] h-[600px] bg-blue-600/10 blur-[150px] rounded-full"></div>
-    </div>
-    <div className="container mx-auto px-6 max-w-7xl relative">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="p-1 rounded border border-blue-500/50 text-blue-400">
-          <Shield size={20} />
-        </div>
-        <span className="text-xl font-medium text-white">Security</span>
-      </div>
-      <h2 className="text-5xl md:text-7xl font-bold text-white mb-16 max-w-4xl leading-tight">
-        Built-in security{' '}
-        <span className="text-blue-400">where found means fixed</span>
-      </h2>
-      <div className="bg-[#161b22] rounded-3xl border border-white/10 p-12 relative overflow-hidden group hover:border-blue-500/50 transition-colors duration-500">
-        <div className="flex flex-col md:flex-row items-center gap-12">
-          <div className="flex-1 space-y-6 relative z-10">
-            <h3 className="text-4xl font-bold text-white">
-              GitHub Advanced Security
-            </h3>
-            <p className="text-xl text-gray-400">
-              Use AI to find and fix vulnerabilities in your code while you
-              write it.
-            </p>
-            <button className="text-blue-400 font-bold hover:underline flex items-center gap-2 text-lg">
-              Explore GHAS <ChevronDown className="-rotate-90" size={18} />
-            </button>
-          </div>
-          <div className="flex-1 w-full perspective-[1000px]">
-            <div className="bg-[#0d1117] rounded-xl border border-white/10 p-6 shadow-2xl transform rotate-y-[-5deg] group-hover:rotate-y-0 transition-transform duration-700">
-              <div className="flex items-center justify-between mb-4">
-                <span className="flex items-center gap-2 text-red-400 font-bold text-sm">
-                  <Lock size={14} /> Vulnerability Detected
-                </span>
-                <span className="text-xs text-gray-500">Just now</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {items.map((item, index) => (
+            <ScrollReveal key={index} delay={index * 0.2}>
+              <div className="bg-[#050505] border border-white/10 p-8 rounded-2xl h-full hover:bg-white/[0.05] hover:border-white/30 transition-all duration-300">
+                <div className="w-16 h-16 rounded-xl bg-black flex items-center justify-center border border-white/10 shadow-lg mb-8">
+                  {item.icon}
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">
+                  {item.name}
+                </h3>
+                <p className="text-gray-400 leading-relaxed">{item.desc}</p>
               </div>
-              <div className="h-2 w-full bg-gray-800 rounded mb-2"></div>
-              <div className="h-2 w-3/4 bg-gray-800 rounded mb-6"></div>
-              <div className="flex gap-3">
-                <button className="flex-1 py-2 bg-blue-600 rounded-md text-white text-xs font-bold">
-                  Fix with Copilot
-                </button>
-                <button className="flex-1 py-2 bg-gray-800 rounded-md text-gray-300 text-xs font-bold">
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          </div>
+            </ScrollReveal>
+          ))}
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
-const Collaboration = () => (
-  <section className="py-32 bg-[#0d1117] relative border-b border-white/5 z-10">
-    <div className="container mx-auto px-6 max-w-7xl">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="p-1 rounded border border-pink-500/50 text-pink-400">
-          <GitPullRequest size={20} />
+// --- 7. FOOTER ---
+const QuickFindFooter = () => (
+  <footer className="py-16 bg-[#020508] border-t border-white/10 relative z-10 font-mono text-xs text-gray-500">
+    <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+      <div className="flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 text-white">
+          <ScanLine size={18} />
         </div>
-        <span className="text-xl font-medium text-white">Collaboration</span>
+        <div className="flex flex-col">
+          <span className="text-gray-200 font-bold text-sm tracking-widest">
+            QUICKFIND
+          </span>
+          <span className="mt-1">
+            © 2026. Infraestructura Logística Avanzada.
+          </span>
+        </div>
       </div>
-      <h2 className="text-5xl md:text-7xl font-bold text-white mb-16 max-w-4xl leading-tight">
-        Work together, <span className="text-pink-400">achieve more</span>
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { title: 'Issues', desc: 'Plan and track work.' },
-          { title: 'Discussions', desc: 'Collaborate outside the code.' },
-          { title: 'Pull Requests', desc: 'Review code like a pro.' },
-        ].map((card, i) => (
-          <div
-            key={i}
-            className="h-80 bg-[#161b22] border border-white/10 rounded-2xl p-8 hover:border-pink-500/30 transition-colors"
-          >
-            <h3 className="text-2xl font-bold text-white mb-2">{card.title}</h3>
-            <p className="text-gray-400">{card.desc}</p>
-          </div>
-        ))}
+      <div className="flex gap-8">
+        <div className="flex items-center gap-2 border border-[#6aaf35]/30 bg-[#6aaf35]/5 px-3 py-1.5 rounded-full text-[#6aaf35]">
+          <div className="w-1.5 h-1.5 bg-[#6aaf35] rounded-full animate-pulse"></div>{' '}
+          All Systems Operational
+        </div>
       </div>
     </div>
-  </section>
+  </footer>
 );
 
 // --- APP PRINCIPAL ---
-export default function GitHubReplicaFinal() {
+export default function QuickFindLanding() {
   const { scrollY } = useScroll();
-  const textY = useTransform(scrollY, [0, 400], [0, 100]);
-  const textOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  // PARALLAX PROFUNDO
+  const bgY1 = useTransform(scrollY, [0, 5000], [0, 1000]);
+
+  // EFECTO CINEMÁTICO HERO
+  const heroScale = useTransform(scrollY, [0, 600], [1, 1.25]);
+  const heroOpacity = useTransform(scrollY, [0, 450], [1, 0]);
+  const heroBlur = useTransform(scrollY, [0, 450], ['blur(0px)', 'blur(20px)']);
+  const heroY = useTransform(scrollY, [0, 600], [0, -100]);
+
+  // ANIMACIÓN PARALLAX DEL SCANNER (Para que esté cerca del stack)
+  const scannerY = useTransform(scrollY, [0, 900], [0, -50]);
 
   return (
-    <div className="bg-[#0d1117] min-h-screen text-gray-400 font-sans selection:bg-purple-500/30 overflow-x-hidden">
-      <Navbar />
+    <div className="bg-black min-h-screen text-gray-300 font-sans selection:bg-[#00a1c9]/40 overflow-x-hidden">
+      <QuickFindNav />
 
-      <section className="relative pt-48 pb-40 px-6">
-        <MascotsAndGlow />
+      {/* 1. HERO SECTION CINEMÁTICO */}
+      <section
+        className="relative pt-44 pb-10 px-6 overflow-hidden min-h-[100vh] flex flex-col items-center justify-start"
+        style={{
+          maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to bottom, black 80%, transparent 100%)',
+        }}
+      >
+        <motion.div
+          style={{ y: bgY1 }}
+          className="absolute inset-0 z-0 opacity-20 pointer-events-none"
+        >
+          <div className="absolute top-[20%] left-[15%] w-2 h-2 bg-[#00a1c9] rounded-full shadow-[0_0_30px_#00a1c9]"></div>
+          <div className="absolute top-[50%] right-[20%] w-3 h-3 bg-[#6aaf35] rounded-full shadow-[0_0_30px_#6aaf35]"></div>
+          <svg className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></svg>
+        </motion.div>
+
+        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[900px] h-[700px] bg-gradient-to-b from-[#00a1c9]/15 via-[#6aaf35]/5 to-transparent blur-[150px] pointer-events-none z-0" />
 
         <motion.div
-          style={{ y: textY, opacity: textOpacity }}
-          className="container mx-auto text-center max-w-5xl relative z-10 mb-20"
+          style={{
+            scale: heroScale,
+            opacity: heroOpacity,
+            filter: heroBlur,
+            y: heroY,
+          }}
+          className="container mx-auto text-center max-w-[1000px] relative z-10 flex flex-col items-center origin-center"
         >
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-sm text-gray-300 mb-8 cursor-pointer hover:border-white/20 transition-colors">
-            <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <span className="font-medium">
-              GitHub Universe: Dive in to AI, security, and DevEx
-            </span>
-            <ChevronDown size={14} className="-rotate-90 text-gray-500" />
+          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-950/30 backdrop-blur-md text-xs font-mono text-purple-300 mb-8 mt-6 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+            <Sparkles size={14} className="text-purple-400" /> DINO-powered
+            Vision Platform
           </div>
 
-          <h1 className="text-7xl md:text-[100px] font-medium tracking-tight text-white leading-[1.05] mb-8">
-            The future of building <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7c3aed] via-[#db2777] to-[#e11d48]">
-              happens together
+          <h1 className="text-5xl md:text-[90px] font-extrabold tracking-tighter text-white leading-[0.95] mb-8 drop-shadow-2xl">
+            Digitalización total <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00a1c9] via-[#6aaf35] to-[#ff9900]">
+              de tu infraestructura.
             </span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Tools and trends evolve, but collaboration endures. With GitHub,
-            developers, agents, and code come together on one platform.
+          <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-3xl leading-relaxed">
+            Unifica el rastreo visual, telemetría y gestión de sanidad en un
+            solo lugar impulsado por inteligencia artificial.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full max-w-lg mx-auto">
-            <div className="flex-1 relative">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="w-full py-3.5 px-4 rounded-md text-black font-semibold focus:ring-2 focus:ring-purple-500 outline-none h-12"
-              />
-            </div>
-            <button className="px-8 py-3.5 rounded-md bg-[#238636] text-white font-bold hover:bg-[#2ea043] transition-colors whitespace-nowrap h-12 border border-white/10">
-              Sign up for GitHub
-            </button>
-            <button className="px-8 py-3.5 rounded-md bg-[#6e40c9] text-white font-bold hover:bg-[#7c3aed] transition-colors whitespace-nowrap h-12 border border-purple-400/20">
-              Start a free trial
-            </button>
+          <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
+            <Button variant="primary">Agendar Implementación</Button>
+            <Button variant="normal">
+              Arquitectura Técnica <Code size={16} className="inline ml-1" />
+            </Button>
           </div>
         </motion.div>
 
-        <HeroEditor />
+        <motion.div
+          style={{ y: scannerY }}
+          className="w-full z-20 mt-12 relative"
+        >
+          <AdvancedVectorScanner />
+        </motion.div>
       </section>
 
-      <div className="py-24 border-y border-white/5 bg-[#0d1117] relative z-10">
-        <div className="container mx-auto px-6">
-          <p className="text-gray-500 mb-8 font-medium">
-            Trusted by the world's leading organizations
+      {/* 2. STACK TECNOLÓGICO (MARQUEE GIGANTE) */}
+      <TechStackMarquee />
+
+      {/* 3. DINO MODEL & MÓDULOS */}
+      <DinoModelSection />
+      <MultiServiceEcosystem />
+      <CapabilitiesSection />
+
+      {/* 4. CTA FINAL */}
+      <section className="py-40 relative bg-black border-t border-white/5 text-center flex flex-col items-center overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none flex items-center justify-center">
+          <div className="w-[800px] h-[800px] rounded-full border border-[#00a1c9]/30 absolute"></div>
+          <div className="w-[600px] h-[600px] rounded-full border border-[#00a1c9]/30 absolute"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            className="w-[800px] h-[800px] absolute rounded-full origin-center"
+          >
+            <div className="w-1/2 h-1/2 bg-gradient-to-br from-[#00a1c9]/30 to-transparent rounded-tl-full border-l-2 border-t-2 border-[#00a1c9]"></div>
+          </motion.div>
+        </div>
+
+        <ScrollReveal className="relative z-10 flex flex-col items-center">
+          <div className="w-24 h-24 bg-[#00a1c9]/10 rounded-full border border-[#00a1c9]/30 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(0,161,201,0.2)] backdrop-blur-md">
+            <ScanLine className="text-[#00a1c9]" size={40} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-5xl md:text-8xl font-extrabold text-white mb-8 tracking-tighter">
+            Digitaliza tu Planta.
+          </h2>
+          <p className="text-lg md:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
+            Opera a la velocidad de la nube. Sin latencia, sin puntos ciegos.
           </p>
-          <div className="flex flex-wrap justify-between items-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
-            <h3 className="text-2xl font-bold text-white">Stripe</h3>
-            <h3 className="text-2xl font-bold text-white">Pinterest</h3>
-            <h3 className="text-2xl font-bold text-white">Netflix</h3>
-            <h3 className="text-2xl font-bold text-white">Telus</h3>
-            <h3 className="text-2xl font-bold text-white">Ford</h3>
-            <h3 className="text-2xl font-bold text-white">Mercedes-Benz</h3>
-          </div>
-        </div>
-      </div>
-
-      <Productivity />
-      <Security />
-      <Collaboration />
-
-      <section className="py-40 bg-[#0d1117] text-center border-b border-white/10 relative z-10">
-        <h2 className="text-5xl md:text-7xl font-bold text-white mb-10 max-w-5xl mx-auto tracking-tight">
-          Millions of developers and businesses call GitHub home
-        </h2>
-        <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-xl mx-auto">
-          <input
-            type="email"
-            placeholder="Enter your email"
-            className="flex-1 py-4 px-6 rounded-md border border-gray-600 bg-transparent text-white font-medium focus:border-white outline-none"
-          />
-          <button className="py-4 px-8 bg-white text-black font-bold rounded-md hover:bg-gray-200 transition-colors">
-            Sign up for GitHub
-          </button>
-        </div>
+          <Button variant="primary">Comenzar Prueba Piloto</Button>
+        </ScrollReveal>
       </section>
 
-      <footer className="py-20 bg-[#0d1117] text-xs text-gray-500 relative z-10">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between">
-          <div className="mb-4 md:mb-0">
-            <span className="block mb-2 text-gray-400">
-              © 2026 GitHub, Inc.
-            </span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
-            <div>
-              <h4 className="font-bold text-gray-300 mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li>Features</li>
-                <li>Security</li>
-                <li>Team</li>
-                <li>Enterprise</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-300 mb-4">Platform</h4>
-              <ul className="space-y-2">
-                <li>Developer API</li>
-                <li>Partners</li>
-                <li>Atom</li>
-                <li>Electron</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-300 mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li>Docs</li>
-                <li>Community Forum</li>
-                <li>Professional Services</li>
-                <li>Status</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-300 mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li>About</li>
-                <li>Blog</li>
-                <li>Careers</li>
-                <li>Press</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <QuickFindFooter />
     </div>
   );
 }

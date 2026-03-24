@@ -211,7 +211,7 @@ export default function VisualSearch() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        await fetch('http://localhost:8000/', {
+        await fetch('https://dinov2-1.onrender.com/', {
           method: 'GET',
           mode: 'no-cors',
         });
@@ -442,7 +442,7 @@ export default function VisualSearch() {
 
     try {
       const res = await fetch(
-        'https://dinov2-1.onrender.com/docs#/piezas/buscar/global',
+        'https://dinov2-1.onrender.com/piezas/buscar/global',
         {
           method: 'POST',
           headers: { 'x-planta': planta.value },

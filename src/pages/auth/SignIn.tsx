@@ -39,6 +39,8 @@ import bg5 from '@/assets/login/f5.png';
 import bg6 from '@/assets/login/f6.png';
 import bg7 from '@/assets/login/f7.png';
 import bg8 from '@/assets/login/f8.png';
+import bg9 from '@/assets/login/f9.png';
+import bg10 from '@/assets/login/f10.png';
 
 const validatePassword = (pass: string) => {
   return {
@@ -264,7 +266,7 @@ const InfoPanel = ({
 }: any) => {
   const features = t('features') || [];
   const randomImage = useMemo(() => {
-    const images = [bg1, bg2, bg3, bg4, bg5, bg6, bg7, bg8];
+    const images = [bg1, bg2, bg3, bg4, bg5, bg6, bg7, bg8, bg9, bg10];
     return images[Math.floor(Math.random() * images.length)];
   }, []);
   return (

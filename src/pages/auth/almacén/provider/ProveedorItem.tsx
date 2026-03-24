@@ -26,10 +26,11 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
-// 👇 IMPORTACIÓN DE TU IMAGEN PARA EL ESTADO VACÍO 👇
+// Imagen Local para el Empty State
 import emptyStateImage from '@/assets/table-items/robot-empty.svg';
 
 // --- ESTILOS CSS ---
+// Mantenemos solo los estilos estrictamente necesarios para el sombreado de selección
 const awsStyles = `
   .awsui-table-row-selected > td {
     box-shadow: none !important;
@@ -50,15 +51,17 @@ const awsStyles = `
 `;
 
 // --- INTERFACES ---
-export interface RoleItem {
-  rol_id: number;
-  name: string;
-  descripcion: string;
+export interface ProveedorItem {
+  proveedor_id: number;
+  nombre: string;
+  contacto: string;
+  telefono: string;
+  email: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-// --- COMPONENTE: EMPTY STATE CON IMAGEN ---
+// --- COMPONENTE: EMPTY STATE ---
 const EmptyState = ({
   title,
   subtitle,
@@ -93,21 +96,20 @@ const EmptyState = ({
   );
 };
 
-export default function RolesTable() {
-  // 🚩 CORRECCIÓN: Usamos la variable de entorno para la URL del backend
+export default function ProveedoresTable() {
   const { alerts, addAlert, setPageLoading } = useContext(AppContent) || {};
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [rolesData, setRolesData] = useState<RoleItem[]>([]);
+  const [proveedoresData, setProveedoresData] = useState<ProveedorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<RoleItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<ProveedorItem[]>([]);
 
   const [tablePreferences, setTablePreferences] = useState({
     pageSize: 20,
-    visibleContent: ['rol_id', 'name', 'descripcion'],
+    visibleContent: ['proveedor_id', 'nombre', 'contacto', 'telefono', 'email'],
   });
 
   const isMounted = useRef(true);
@@ -116,63 +118,119 @@ export default function RolesTable() {
   // --- DEFINICIÓN DE COLUMNAS CON INLINE EDIT ---
   const COLUMN_DEFINITIONS = [
     {
-      id: 'rol_id',
+      id: 'proveedor_id',
       header: 'ID',
-      cell: (item: RoleItem) => item.rol_id,
-      sortingField: 'rol_id',
+      cell: (item: ProveedorItem) => item.proveedor_id,
+      sortingField: 'proveedor_id',
       minWidth: 80,
       isRowHeader: true,
     },
     {
-      id: 'name',
-      header: 'Nombre del Rol',
-      // Renderizado limpio, en negritas y capitalizado, sin colores.
-      cell: (item: RoleItem) => (
-        <strong style={{ textTransform: 'capitalize' }}>{item.name}</strong>
-      ),
-      sortingField: 'name',
-      minWidth: 160,
+      id: 'nombre',
+      header: 'Razón Social / Empresa',
+      cell: (item: ProveedorItem) => <strong>{item.nombre}</strong>,
+      sortingField: 'nombre',
+      minWidth: 200,
       editConfig: {
-        ariaLabel: 'Editar nombre del rol',
+        ariaLabel: 'Editar nombre del proveedor',
         editIconAriaLabel: 'editable',
         errorIconAriaLabel: 'Error de validación',
-        editingCell: (item: RoleItem, { currentValue, setValue }: any) => (
+        editingCell: (item: ProveedorItem, { currentValue, setValue }: any) => (
           <Input
             autoFocus
-            value={currentValue ?? item.name}
+            value={currentValue ?? item.nombre}
             onChange={(e) => setValue(e.detail.value)}
-            placeholder="Ej. admin"
+            placeholder="Ej. Refacciones Industriales S.A."
           />
         ),
-        validation: (_item: RoleItem, value: string) => {
+        validation: (_item: ProveedorItem, value: string) => {
           if (!value || value.trim() === '')
-            return 'El nombre del rol es requerido.';
+            return 'El nombre de la empresa es requerido.';
           return undefined;
         },
       },
     },
     {
-      id: 'descripcion',
-      header: 'Descripción',
-      cell: (item: RoleItem) => item.descripcion,
-      sortingField: 'descripcion',
-      minWidth: 350,
+      id: 'contacto',
+      header: 'Persona de Contacto',
+      cell: (item: ProveedorItem) => item.contacto,
+      sortingField: 'contacto',
+      minWidth: 180,
       editConfig: {
-        ariaLabel: 'Editar descripción',
+        ariaLabel: 'Editar persona de contacto',
         editIconAriaLabel: 'editable',
         errorIconAriaLabel: 'Error de validación',
-        editingCell: (item: RoleItem, { currentValue, setValue }: any) => (
+        editingCell: (item: ProveedorItem, { currentValue, setValue }: any) => (
           <Input
             autoFocus
-            value={currentValue ?? item.descripcion}
+            value={currentValue ?? item.contacto}
             onChange={(e) => setValue(e.detail.value)}
-            placeholder="Nivel de acceso..."
+            placeholder="Ej. Juan Pérez"
           />
         ),
-        validation: (_item: RoleItem, value: string) => {
+        validation: (_item: ProveedorItem, value: string) => {
           if (!value || value.trim() === '')
-            return 'La descripción es requerida.';
-          if (value.length < 5) return 'La descripción es demasiado corta.';
+            return 'El nombre del contacto es requerido.';
+          return undefined;
+        },
+      },
+    },
+    {
+      id: 'telefono',
+      header: 'Teléfono',
+      cell: (item: ProveedorItem) => item.telefono,
+      sortingField: 'telefono',
+      minWidth: 150,
+      editConfig: {
+        ariaLabel: 'Editar teléfono',
+        editIconAriaLabel: 'editable',
+        errorIconAriaLabel: 'Error de validación',
+        editingCell: (item: ProveedorItem, { currentValue, setValue }: any) => (
+          <Input
+            autoFocus
+            type="text" // FIX: Cambiado de "tel" a "text" porque Cloudscape no acepta "tel"
+            value={currentValue ?? item.telefono}
+            onChange={(e) => setValue(e.detail.value)}
+            placeholder="Ej. 555-123-4567"
+          />
+        ),
+        validation: (_item: ProveedorItem, value: string) => {
+          if (!value || value.trim() === '') return 'El teléfono es requerido.';
+          return undefined;
+        },
+      },
+    },
+    {
+      id: 'email',
+      header: 'Correo Electrónico',
+      cell: (item: ProveedorItem) => (
+        <a
+          href={`mailto:${item.email}`}
+          style={{ color: '#0972d3', textDecoration: 'none' }}
+        >
+          {item.email}
+        </a>
+      ),
+      sortingField: 'email',
+      minWidth: 200,
+      editConfig: {
+        ariaLabel: 'Editar correo electrónico',
+        editIconAriaLabel: 'editable',
+        errorIconAriaLabel: 'Error de validación',
+        editingCell: (item: ProveedorItem, { currentValue, setValue }: any) => (
+          <Input
+            autoFocus
+            type="email" // "email" sí es soportado por Cloudscape
+            value={currentValue ?? item.email}
+            onChange={(e) => setValue(e.detail.value)}
+            placeholder="contacto@empresa.com"
+          />
+        ),
+        validation: (_item: ProveedorItem, value: string) => {
+          const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+          if (!value || value.trim() === '') return 'El correo es requerido.';
+          if (!emailRegex.test(value))
+            return 'Ingresa un formato de correo válido.';
           return undefined;
         },
       },
@@ -187,15 +245,15 @@ export default function RolesTable() {
     };
   }, [setPageLoading]);
 
-  // --- OBTENER DATOS DE LA API REAL (A PRUEBA DE FALLOS) ---
-  const fetchRoles = useCallback(
+  // --- OBTENER DATOS DE LA API REAL ---
+  const fetchProveedores = useCallback(
     async (isRefresh = false) => {
       const alertId = addAlert
         ? addAlert(
             'info',
             isRefresh
-              ? 'Actualizando roles...'
-              : 'Obteniendo catálogo de roles de la base de datos...',
+              ? 'Actualizando lista de proveedores...'
+              : 'Obteniendo proveedores desde la base de datos...',
             'Sincronizando',
             undefined,
             true,
@@ -208,25 +266,25 @@ export default function RolesTable() {
           else setLoading(true);
         }
 
-        const response = await axios.get(`${backendUrl}/api/roles`, {
-          withCredentials: true,
-        });
+        const response = await axios.get(
+          // Ajusta esta ruta a tu endpoint real
+          // `${backendUrl}/api/proveedores`
+          ``,
+          {
+            withCredentials: true,
+          },
+        );
 
-        const resData = response.data;
-
-        if (Array.isArray(resData) || resData.success) {
+        if (response.data.success) {
           if (isMounted.current) {
-            const validData = Array.isArray(resData)
-              ? resData
-              : resData.roles || [];
-            setRolesData(validData);
+            setProveedoresData(response.data.proveedores);
           }
           await new Promise((resolve) => setTimeout(resolve, 600));
 
           if (addAlert) {
             addAlert(
               'success',
-              'Catálogo de roles cargado correctamente.',
+              'Directorio de proveedores cargado correctamente.',
               'Éxito',
               alertId,
               false,
@@ -236,7 +294,7 @@ export default function RolesTable() {
           if (addAlert) {
             addAlert(
               'warning',
-              'No se encontraron roles o hubo un problema al leer la base de datos.',
+              'No se encontraron proveedores o hubo un problema al leer la base de datos.',
               'Advertencia',
               alertId,
               false,
@@ -244,7 +302,7 @@ export default function RolesTable() {
           }
         }
       } catch (error: any) {
-        console.error('Error cargando roles:', error);
+        console.error('Error cargando proveedores:', error);
         if (addAlert) {
           addAlert(
             'error',
@@ -267,28 +325,30 @@ export default function RolesTable() {
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
-      fetchRoles();
+      fetchProveedores();
     }
-  }, [fetchRoles]);
+  }, [fetchProveedores]);
 
   // --- LÓGICA DE GUARDADO INLINE HACIA LA API ---
   const handleInlineEditSave = async (
-    item: RoleItem,
+    item: ProveedorItem,
     column: any,
     newValue: string,
   ) => {
     try {
       await axios.put(
-        `${backendUrl}/api/roles/${item.rol_id}`,
+        // Ajusta esta ruta a tu endpoint real
+        // `${backendUrl}/api/proveedores/${item.proveedor_id}`
+        '',
         { [column.id]: newValue },
         { withCredentials: true },
       );
 
-      setRolesData((prevData) =>
-        prevData.map((role) =>
-          role.rol_id === item.rol_id
-            ? { ...role, [column.id]: newValue }
-            : role,
+      setProveedoresData((prevData) =>
+        prevData.map((prov) =>
+          prov.proveedor_id === item.proveedor_id
+            ? { ...prov, [column.id]: newValue }
+            : prov,
         ),
       );
 
@@ -302,7 +362,7 @@ export default function RolesTable() {
         );
       }
     } catch (error: any) {
-      console.error('Error actualizando rol:', error);
+      console.error('Error actualizando proveedor:', error);
       if (addAlert) {
         addAlert(
           'error',
@@ -323,22 +383,22 @@ export default function RolesTable() {
     collectionProps,
     paginationProps,
     filterProps,
-  } = useCollection(rolesData, {
+  } = useCollection(proveedoresData, {
     pagination: { pageSize: tablePreferences.pageSize },
     sorting: { defaultState: { sortingColumn: COLUMN_DEFINITIONS[0] } },
     selection: {},
     filtering: {
       empty: (
         <EmptyState
-          title="No hay roles del sistema"
-          subtitle="No existen roles o niveles de acceso registrados para mostrar."
-          action={<Button variant="primary">Crear rol</Button>}
+          title="No hay proveedores registrados"
+          subtitle="Agrega proveedores de refacciones para poder visualizar su información aquí."
+          action={<Button variant="primary">Añadir proveedor</Button>}
         />
       ),
       noMatch: (
         <EmptyState
           title="No hay coincidencias"
-          subtitle="No se encontraron roles que coincidan con la búsqueda."
+          subtitle="No se encontraron proveedores que coincidan con la búsqueda."
           action={
             <Button onClick={() => actions.setFiltering('')}>
               Borrar filtro
@@ -360,11 +420,13 @@ export default function RolesTable() {
         style={{ position: 'sticky', top: 0, zIndex: 1002 }}
       >
         <Navbar />
+        {/* Usamos @ts-ignore si SecondaryHeader sigue quejándose de los props */}
+        {/* @ts-ignore */}
         <SecondaryHeader
           breadcrumbs={[
             { text: 'Sistema', href: '#' },
-            { text: 'Configuración', href: '#' },
-            { text: 'Roles y Accesos', href: '/roles' },
+            { text: 'Almacén', href: '#' },
+            { text: 'Proveedores de Refacciones', href: '/proveedores' },
           ]}
           isMenuOpen={navigationOpen}
           onMenuClick={() => setNavigationOpen(!navigationOpen)}
@@ -391,7 +453,7 @@ export default function RolesTable() {
             {...collectionProps}
             selectedItems={selectedItems}
             onSelectionChange={({ detail }) =>
-              setSelectedItems(detail.selectedItems as RoleItem[])
+              setSelectedItems(detail.selectedItems as ProveedorItem[])
             }
             columnDefinitions={COLUMN_DEFINITIONS as any}
             items={items}
@@ -400,8 +462,8 @@ export default function RolesTable() {
             stickyHeader={true}
             stickyHeaderVerticalOffset={90}
             loading={loading}
-            loadingText="Cargando roles..."
-            trackBy="rol_id"
+            loadingText="Cargando directorio de proveedores..."
+            trackBy="proveedor_id"
             submitEdit={handleInlineEditSave as any}
             empty={
               <div style={{ padding: '40px 0' }}>{collectionProps.empty}</div>
@@ -410,28 +472,28 @@ export default function RolesTable() {
               <Header
                 variant="h1"
                 counter={!loading ? `(${items.length})` : ''}
-                description="Administra los niveles de acceso y permisos dentro de la plataforma."
+                description="Administra los contactos y empresas proveedoras de refacciones para tu almacén."
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button
                       iconName="refresh"
                       loading={refreshing}
-                      onClick={() => fetchRoles(true)}
+                      onClick={() => fetchProveedores(true)}
                       ariaLabel="Refrescar"
                     />
                     <Button disabled={selectedItems.length === 0}>
                       Eliminar
                     </Button>
-                    <Button variant="primary">Nuevo rol</Button>
+                    <Button variant="primary">Nuevo proveedor</Button>
                   </SpaceBetween>
                 }
               >
-                Roles del Sistema
+                Proveedores
               </Header>
             }
             preferences={
               <CollectionPreferences
-                title="Preferencias"
+                title="Preferencias de vista"
                 confirmLabel="Confirmar"
                 cancelLabel="Cancelar"
                 preferences={tablePreferences as any}
@@ -447,7 +509,7 @@ export default function RolesTable() {
                   title: 'Seleccionar columnas visibles',
                   options: [
                     {
-                      label: 'Propiedades principales',
+                      label: 'Información del proveedor',
                       options: COLUMN_DEFINITIONS.map((col) => ({
                         id: col.id,
                         label: col.header as string,
@@ -460,7 +522,7 @@ export default function RolesTable() {
             filter={
               <TextFilter
                 {...filterProps}
-                filteringPlaceholder="Buscar rol (ej. admin)..."
+                filteringPlaceholder="Buscar por empresa, contacto o correo..."
                 countText={`${filteredItemsCount} coincidencias`}
               />
             }

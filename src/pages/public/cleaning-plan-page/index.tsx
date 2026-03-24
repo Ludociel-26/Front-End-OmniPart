@@ -484,7 +484,7 @@ export default function CleaningPlanPage() {
         <TopNavigation
           identity={{
             href: '#',
-            title: 'Sistema de Mantenimiento',
+            title: 'QuickFind',
             logo: {
               src: 'https://d1.awsstatic.com/webteam/nav/global-nav-logos/aws-logo-white.png',
               alt: 'Logo',

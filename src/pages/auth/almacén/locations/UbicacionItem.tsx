@@ -14,6 +14,8 @@ import {
   Flashbar,
   CollectionPreferences,
   Input,
+  Select,
+  StatusIndicator,
 } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 
@@ -26,7 +28,7 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
-// 👇 IMPORTACIÓN DE TU IMAGEN PARA EL ESTADO VACÍO 👇
+// Imagen Local para el Empty State
 import emptyStateImage from '@/assets/table-items/robot-empty.svg';
 
 // --- ESTILOS CSS ---
@@ -50,15 +52,25 @@ const awsStyles = `
 `;
 
 // --- INTERFACES ---
-export interface RoleItem {
-  rol_id: number;
-  name: string;
-  descripcion: string;
+export interface UbicacionItem {
+  ubicacion_id: number;
+  codigo: string; // Ej: P01-E02-N03
+  pasillo: string;
+  estante: string;
+  nivel: string;
+  estatus: 'Disponible' | 'Ocupada' | 'Mantenimiento';
   createdAt?: string;
   updatedAt?: string;
 }
 
-// --- COMPONENTE: EMPTY STATE CON IMAGEN ---
+// Opciones para el Select del Estatus
+const ESTATUS_OPTIONS = [
+  { label: 'Disponible', value: 'Disponible' },
+  { label: 'Ocupada', value: 'Ocupada' },
+  { label: 'Mantenimiento', value: 'Mantenimiento' },
+];
+
+// --- COMPONENTE: EMPTY STATE ---
 const EmptyState = ({
   title,
   subtitle,
@@ -93,86 +105,165 @@ const EmptyState = ({
   );
 };
 
-export default function RolesTable() {
-  // 🚩 CORRECCIÓN: Usamos la variable de entorno para la URL del backend
+export default function UbicacionesTable() {
   const { alerts, addAlert, setPageLoading } = useContext(AppContent) || {};
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [rolesData, setRolesData] = useState<RoleItem[]>([]);
+  const [ubicacionesData, setUbicacionesData] = useState<UbicacionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<RoleItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<UbicacionItem[]>([]);
 
   const [tablePreferences, setTablePreferences] = useState({
     pageSize: 20,
-    visibleContent: ['rol_id', 'name', 'descripcion'],
+    visibleContent: [
+      'ubicacion_id',
+      'codigo',
+      'pasillo',
+      'estante',
+      'nivel',
+      'estatus',
+    ],
   });
 
   const isMounted = useRef(true);
   const hasFetched = useRef(false);
 
+  // --- HELPER PARA RENDERIZAR ESTATUS ---
+  const getStatusIndicator = (estatus: string) => {
+    switch (estatus) {
+      case 'Disponible':
+        return <StatusIndicator type="success">Disponible</StatusIndicator>;
+      case 'Ocupada':
+        return <StatusIndicator type="error">Ocupada</StatusIndicator>;
+      case 'Mantenimiento':
+        return <StatusIndicator type="warning">Mantenimiento</StatusIndicator>;
+      default:
+        return <StatusIndicator type="info">{estatus}</StatusIndicator>;
+    }
+  };
+
   // --- DEFINICIÓN DE COLUMNAS CON INLINE EDIT ---
   const COLUMN_DEFINITIONS = [
     {
-      id: 'rol_id',
+      id: 'ubicacion_id',
       header: 'ID',
-      cell: (item: RoleItem) => item.rol_id,
-      sortingField: 'rol_id',
+      cell: (item: UbicacionItem) => item.ubicacion_id,
+      sortingField: 'ubicacion_id',
       minWidth: 80,
       isRowHeader: true,
     },
     {
-      id: 'name',
-      header: 'Nombre del Rol',
-      // Renderizado limpio, en negritas y capitalizado, sin colores.
-      cell: (item: RoleItem) => (
-        <strong style={{ textTransform: 'capitalize' }}>{item.name}</strong>
+      id: 'codigo',
+      header: 'Código Generado',
+      cell: (item: UbicacionItem) => (
+        <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+          {item.pasillo}-{item.estante}-{item.nivel}
+        </span>
       ),
-      sortingField: 'name',
+      // No tiene inline edit porque se compone de los otros campos
       minWidth: 160,
+    },
+    {
+      id: 'pasillo',
+      header: 'Pasillo',
+      cell: (item: UbicacionItem) => item.pasillo,
+      sortingField: 'pasillo',
+      minWidth: 120,
       editConfig: {
-        ariaLabel: 'Editar nombre del rol',
+        ariaLabel: 'Editar pasillo',
         editIconAriaLabel: 'editable',
         errorIconAriaLabel: 'Error de validación',
-        editingCell: (item: RoleItem, { currentValue, setValue }: any) => (
+        editingCell: (item: UbicacionItem, { currentValue, setValue }: any) => (
           <Input
             autoFocus
-            value={currentValue ?? item.name}
-            onChange={(e) => setValue(e.detail.value)}
-            placeholder="Ej. admin"
+            value={currentValue ?? item.pasillo}
+            onChange={(e) => setValue(e.detail.value.toUpperCase())}
+            placeholder="Ej. P01"
           />
         ),
-        validation: (_item: RoleItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'El nombre del rol es requerido.';
+        validation: (_item: UbicacionItem, value: string) => {
+          if (!value || value.trim() === '') return 'Requerido.';
           return undefined;
         },
       },
     },
     {
-      id: 'descripcion',
-      header: 'Descripción',
-      cell: (item: RoleItem) => item.descripcion,
-      sortingField: 'descripcion',
-      minWidth: 350,
+      id: 'estante',
+      header: 'Estante / Rack',
+      cell: (item: UbicacionItem) => item.estante,
+      sortingField: 'estante',
+      minWidth: 120,
       editConfig: {
-        ariaLabel: 'Editar descripción',
+        ariaLabel: 'Editar estante',
         editIconAriaLabel: 'editable',
         errorIconAriaLabel: 'Error de validación',
-        editingCell: (item: RoleItem, { currentValue, setValue }: any) => (
+        editingCell: (item: UbicacionItem, { currentValue, setValue }: any) => (
           <Input
             autoFocus
-            value={currentValue ?? item.descripcion}
-            onChange={(e) => setValue(e.detail.value)}
-            placeholder="Nivel de acceso..."
+            value={currentValue ?? item.estante}
+            onChange={(e) => setValue(e.detail.value.toUpperCase())}
+            placeholder="Ej. E02"
           />
         ),
-        validation: (_item: RoleItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'La descripción es requerida.';
-          if (value.length < 5) return 'La descripción es demasiado corta.';
+        validation: (_item: UbicacionItem, value: string) => {
+          if (!value || value.trim() === '') return 'Requerido.';
+          return undefined;
+        },
+      },
+    },
+    {
+      id: 'nivel',
+      header: 'Nivel / Cajón',
+      cell: (item: UbicacionItem) => item.nivel,
+      sortingField: 'nivel',
+      minWidth: 120,
+      editConfig: {
+        ariaLabel: 'Editar nivel',
+        editIconAriaLabel: 'editable',
+        errorIconAriaLabel: 'Error de validación',
+        editingCell: (item: UbicacionItem, { currentValue, setValue }: any) => (
+          <Input
+            autoFocus
+            value={currentValue ?? item.nivel}
+            onChange={(e) => setValue(e.detail.value.toUpperCase())}
+            placeholder="Ej. N03"
+          />
+        ),
+        validation: (_item: UbicacionItem, value: string) => {
+          if (!value || value.trim() === '') return 'Requerido.';
+          return undefined;
+        },
+      },
+    },
+    {
+      id: 'estatus',
+      header: 'Estatus',
+      cell: (item: UbicacionItem) => getStatusIndicator(item.estatus),
+      sortingField: 'estatus',
+      minWidth: 180,
+      editConfig: {
+        ariaLabel: 'Editar estatus',
+        editIconAriaLabel: 'editable',
+        errorIconAriaLabel: 'Error de validación',
+        editingCell: (item: UbicacionItem, { currentValue, setValue }: any) => {
+          const value = currentValue ?? item.estatus;
+          return (
+            <Select
+              autoFocus
+              expandToViewport
+              selectedOption={
+                ESTATUS_OPTIONS.find((opt) => opt.value === value) || null
+              }
+              onChange={({ detail }) => setValue(detail.selectedOption.value)}
+              options={ESTATUS_OPTIONS}
+            />
+          );
+        },
+        validation: (_item: UbicacionItem, value: string) => {
+          if (!value) return 'Debes seleccionar un estatus.';
           return undefined;
         },
       },
@@ -187,15 +278,15 @@ export default function RolesTable() {
     };
   }, [setPageLoading]);
 
-  // --- OBTENER DATOS DE LA API REAL (A PRUEBA DE FALLOS) ---
-  const fetchRoles = useCallback(
+  // --- OBTENER DATOS DE LA API REAL ---
+  const fetchUbicaciones = useCallback(
     async (isRefresh = false) => {
       const alertId = addAlert
         ? addAlert(
             'info',
             isRefresh
-              ? 'Actualizando roles...'
-              : 'Obteniendo catálogo de roles de la base de datos...',
+              ? 'Actualizando inventario de ubicaciones...'
+              : 'Obteniendo ubicaciones desde la base de datos...',
             'Sincronizando',
             undefined,
             true,
@@ -208,25 +299,25 @@ export default function RolesTable() {
           else setLoading(true);
         }
 
-        const response = await axios.get(`${backendUrl}/api/roles`, {
-          withCredentials: true,
-        });
+        const response = await axios.get(
+          // Ajusta esta ruta a tu endpoint real
+          // `${backendUrl}/api/ubicaciones`
+          ``,
+          {
+            withCredentials: true,
+          },
+        );
 
-        const resData = response.data;
-
-        if (Array.isArray(resData) || resData.success) {
+        if (response.data.success) {
           if (isMounted.current) {
-            const validData = Array.isArray(resData)
-              ? resData
-              : resData.roles || [];
-            setRolesData(validData);
+            setUbicacionesData(response.data.ubicaciones);
           }
           await new Promise((resolve) => setTimeout(resolve, 600));
 
           if (addAlert) {
             addAlert(
               'success',
-              'Catálogo de roles cargado correctamente.',
+              'Layout del almacén cargado correctamente.',
               'Éxito',
               alertId,
               false,
@@ -236,7 +327,7 @@ export default function RolesTable() {
           if (addAlert) {
             addAlert(
               'warning',
-              'No se encontraron roles o hubo un problema al leer la base de datos.',
+              'No se encontraron ubicaciones registradas.',
               'Advertencia',
               alertId,
               false,
@@ -244,7 +335,7 @@ export default function RolesTable() {
           }
         }
       } catch (error: any) {
-        console.error('Error cargando roles:', error);
+        console.error('Error cargando ubicaciones:', error);
         if (addAlert) {
           addAlert(
             'error',
@@ -267,42 +358,44 @@ export default function RolesTable() {
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
-      fetchRoles();
+      fetchUbicaciones();
     }
-  }, [fetchRoles]);
+  }, [fetchUbicaciones]);
 
   // --- LÓGICA DE GUARDADO INLINE HACIA LA API ---
   const handleInlineEditSave = async (
-    item: RoleItem,
+    item: UbicacionItem,
     column: any,
     newValue: string,
   ) => {
     try {
       await axios.put(
-        `${backendUrl}/api/roles/${item.rol_id}`,
+        // Ajusta esta ruta a tu endpoint real
+        // `${backendUrl}/api/ubicaciones/${item.ubicacion_id}`
+        '',
         { [column.id]: newValue },
         { withCredentials: true },
       );
 
-      setRolesData((prevData) =>
-        prevData.map((role) =>
-          role.rol_id === item.rol_id
-            ? { ...role, [column.id]: newValue }
-            : role,
+      setUbicacionesData((prevData) =>
+        prevData.map((ubicacion) =>
+          ubicacion.ubicacion_id === item.ubicacion_id
+            ? { ...ubicacion, [column.id]: newValue }
+            : ubicacion,
         ),
       );
 
       if (addAlert) {
         addAlert(
           'success',
-          `El campo ${column.header} se actualizó correctamente.`,
+          `La ubicación se actualizó correctamente.`,
           'Guardado exitoso',
           undefined,
           false,
         );
       }
     } catch (error: any) {
-      console.error('Error actualizando rol:', error);
+      console.error('Error actualizando ubicación:', error);
       if (addAlert) {
         addAlert(
           'error',
@@ -323,22 +416,22 @@ export default function RolesTable() {
     collectionProps,
     paginationProps,
     filterProps,
-  } = useCollection(rolesData, {
+  } = useCollection(ubicacionesData, {
     pagination: { pageSize: tablePreferences.pageSize },
     sorting: { defaultState: { sortingColumn: COLUMN_DEFINITIONS[0] } },
     selection: {},
     filtering: {
       empty: (
         <EmptyState
-          title="No hay roles del sistema"
-          subtitle="No existen roles o niveles de acceso registrados para mostrar."
-          action={<Button variant="primary">Crear rol</Button>}
+          title="No hay ubicaciones creadas"
+          subtitle="Diseña el layout de tu almacén agregando pasillos y estantes."
+          action={<Button variant="primary">Crear ubicación</Button>}
         />
       ),
       noMatch: (
         <EmptyState
           title="No hay coincidencias"
-          subtitle="No se encontraron roles que coincidan con la búsqueda."
+          subtitle="No se encontraron ubicaciones que coincidan con la búsqueda."
           action={
             <Button onClick={() => actions.setFiltering('')}>
               Borrar filtro
@@ -363,8 +456,8 @@ export default function RolesTable() {
         <SecondaryHeader
           breadcrumbs={[
             { text: 'Sistema', href: '#' },
-            { text: 'Configuración', href: '#' },
-            { text: 'Roles y Accesos', href: '/roles' },
+            { text: 'Almacén', href: '#' },
+            { text: 'Ubicaciones', href: '/ubicaciones' },
           ]}
           isMenuOpen={navigationOpen}
           onMenuClick={() => setNavigationOpen(!navigationOpen)}
@@ -391,7 +484,7 @@ export default function RolesTable() {
             {...collectionProps}
             selectedItems={selectedItems}
             onSelectionChange={({ detail }) =>
-              setSelectedItems(detail.selectedItems as RoleItem[])
+              setSelectedItems(detail.selectedItems as UbicacionItem[])
             }
             columnDefinitions={COLUMN_DEFINITIONS as any}
             items={items}
@@ -400,8 +493,8 @@ export default function RolesTable() {
             stickyHeader={true}
             stickyHeaderVerticalOffset={90}
             loading={loading}
-            loadingText="Cargando roles..."
-            trackBy="rol_id"
+            loadingText="Cargando mapa de ubicaciones..."
+            trackBy="ubicacion_id"
             submitEdit={handleInlineEditSave as any}
             empty={
               <div style={{ padding: '40px 0' }}>{collectionProps.empty}</div>
@@ -410,28 +503,28 @@ export default function RolesTable() {
               <Header
                 variant="h1"
                 counter={!loading ? `(${items.length})` : ''}
-                description="Administra los niveles de acceso y permisos dentro de la plataforma."
+                description="Gestiona las ubicaciones físicas (pasillos, estantes, cajones) de las refacciones en el almacén."
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button
                       iconName="refresh"
                       loading={refreshing}
-                      onClick={() => fetchRoles(true)}
+                      onClick={() => fetchUbicaciones(true)}
                       ariaLabel="Refrescar"
                     />
                     <Button disabled={selectedItems.length === 0}>
                       Eliminar
                     </Button>
-                    <Button variant="primary">Nuevo rol</Button>
+                    <Button variant="primary">Nueva ubicación</Button>
                   </SpaceBetween>
                 }
               >
-                Roles del Sistema
+                Ubicaciones de Inventario
               </Header>
             }
             preferences={
               <CollectionPreferences
-                title="Preferencias"
+                title="Preferencias de vista"
                 confirmLabel="Confirmar"
                 cancelLabel="Cancelar"
                 preferences={tablePreferences as any}
@@ -439,15 +532,15 @@ export default function RolesTable() {
                 pageSizePreference={{
                   title: 'Tamaño de página',
                   options: [
-                    { value: 20, label: '20 recursos' },
-                    { value: 50, label: '50 recursos' },
+                    { value: 20, label: '20 ubicaciones' },
+                    { value: 50, label: '50 ubicaciones' },
                   ],
                 }}
                 visibleContentPreference={{
                   title: 'Seleccionar columnas visibles',
                   options: [
                     {
-                      label: 'Propiedades principales',
+                      label: 'Detalles de ubicación',
                       options: COLUMN_DEFINITIONS.map((col) => ({
                         id: col.id,
                         label: col.header as string,
@@ -460,7 +553,7 @@ export default function RolesTable() {
             filter={
               <TextFilter
                 {...filterProps}
-                filteringPlaceholder="Buscar rol (ej. admin)..."
+                filteringPlaceholder="Buscar por código, pasillo o estante..."
                 countText={`${filteredItemsCount} coincidencias`}
               />
             }
