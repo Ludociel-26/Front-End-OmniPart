@@ -22,7 +22,13 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
-// --- ESQUEMA EXACTO: REPORTE DIARIO MAQUINARIA CONGELADOS ---
+// --- TIPOS DE DATOS LOCALES ---
+interface SelectOption {
+  label: string;
+  value: string;
+}
+
+// --- ESQUEMA EXACTO: REPORTE DIARIO MAQUINARIA CONGELADOS (v3.0) ---
 const SCHEMA = {
   maquinaria: [
     { id: 'maq_1', label: '1. VENTILADOR DE CONDENSADOR FRICK NO.1' },
@@ -60,10 +66,10 @@ const SCHEMA = {
     { id: 'cf_13', label: '13. VENTILADORES DIFUSOR NO.13 DE CONSERVACION' },
   ],
   acondicionado: [
-    { id: 'ac_1', label: '1. CLIMA # 1' },
-    { id: 'ac_2', label: '2. CLIMA # 2' },
-    { id: 'ac_3', label: '3. CLIMA # 3' },
-    { id: 'ac_4', label: '4. CLIMA # 4' },
+    { id: 'ac_1', label: '1. CLIMA # 1 area de Corte' },
+    { id: 'ac_2', label: '2. CLIMA # 2 area de Corte' },
+    { id: 'ac_3', label: '3. CLIMA # 3 area pesado de Copas' },
+    { id: 'ac_4', label: '4. CLIMA # 4 area pesado de Copas' },
     { id: 'ac_5', label: '5. AREA DE ENVAFLEX' },
     { id: 'ac_6', label: '6. CLIMA OFICINA DE SERVICIOS TECNICOS' },
   ],
@@ -74,14 +80,25 @@ const SCHEMA = {
     { id: 'am_4', label: '4. SENSOR DE AMONIACO DEL DIFUSOR # 9' },
     { id: 'am_5', label: '5. SENSOR DE AMONIACO DEL I.Q.F.' },
   ],
-  aisladosABC: [
+  sistemas_aislados: [
     {
       id: 'rejillas',
-      label: 'INSPECCION DE LAS REJILLAS DE AIRE DE VENTILACION.',
+      label: 'INSPECCION DE FILTROS Y REJILLAS DE AIRE DE VENTILACION.',
+    },
+    {
+      id: 'deshielo',
+      label: 'VERIFICAR SECUENCIA OPERATIVA DEL CICLO DE DESHIELO',
     },
     {
       id: 'ecochiller',
       label: 'REVISAR FUNCIONAMIENTO DEL SISTEMA DEL ECOCHILLER',
+    },
+  ],
+  fugas_drager: [
+    {
+      id: 'fuga_drager',
+      label:
+        'INSPECCIONAR PRESENCIA DE FUGAS DE AMONIACO EN EL SISTEMA CON DETECTOR DRAGER',
     },
   ],
   dosificadores: [
@@ -96,11 +113,11 @@ const SCHEMA = {
   ],
   limpieza: {
     id: 'limpieza_area',
-    label: 'REALIZAR LIMPIEZA DEL AREA Y MAQUINARIA',
+    label: 'REALIZAR LIMPIEZA DEL AREA Y MAQUINARIA (3 TURNOS)',
   },
 };
 
-// OPCIONES DE ESTADO CON ICONOS VISUALES
+// --- OPCIONES DE ESTADO ---
 const OPCIONES_TRES_ESTADOS = [
   { text: '✓ Normal', id: 'NORMAL' },
   { text: '! Anormal', id: 'ANORMAL' },
@@ -117,44 +134,53 @@ const OPCIONES_DOSIFICADORES = [
   { text: 'NO', id: 'NO' },
 ];
 
+const OPCIONES_FUGAS_DRAGER = [
+  { text: '✓ Sin Fuga', id: 'SIN_FUGA' },
+  { text: '✕ Con Fuga', id: 'CON_FUGA' },
+];
+
 export default function DailyReportCongelados() {
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
 
-  // FIX: Tipamos el Select de turno
-  const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
+  const [turno, setTurno] = useState<SelectOption>({
+    label: 'Turno A',
+    value: 'A',
+  });
   const [observacionesGlobales, setObservacionesGlobales] = useState('');
 
-  // FIX: Declaramos evaluations como diccionario de objetos anidados
   const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
-  // Inicialización exacta
   useEffect(() => {
-    // FIX: Tipamos el initialState
     const initialState: Record<string, any> = {};
 
-    // Normal / Anormal / Falla (Inician en Normal)
+    // Inicializar Normal / Anormal / Falla
     [
       ...SCHEMA.maquinaria,
       ...SCHEMA.cuartos,
       ...SCHEMA.acondicionado,
-      ...SCHEMA.aisladosABC,
+      ...SCHEMA.sistemas_aislados,
     ].forEach((item) => {
       initialState[item.id] = { status: 'NORMAL', comments: '' };
     });
 
-    // Amoníaco (Normal / Falla)
+    // Inicializar Amoníaco
     SCHEMA.amoniaco.forEach((item) => {
       initialState[item.id] = { status: 'NORMAL', comments: '' };
     });
 
-    // Dosificadores (SI / NO)
+    // Inicializar Fugas Drager
+    SCHEMA.fugas_drager.forEach((item) => {
+      initialState[item.id] = { status: 'SIN_FUGA', comments: '' };
+    });
+
+    // Inicializar Dosificadores
     SCHEMA.dosificadores.forEach((item) => {
       initialState[item.id] = { status: 'SI', comments: '' };
     });
 
-    // Limpieza (Booleano)
+    // Inicializar Limpieza
     initialState[SCHEMA.limpieza.id] = { status: false, comments: '' };
 
     setEvaluations(initialState);
@@ -162,22 +188,24 @@ export default function DailyReportCongelados() {
     setShowErrorAlert(false);
   }, [turno.value]);
 
-  // FIX: Tipamos id y newStatus
   const handleStatusChange = (id: string, newStatus: any) => {
     setEvaluations((prev) => ({
       ...prev,
       [id]: {
         ...prev[id],
         status: newStatus,
+        // Limpiamos los comentarios si vuelve a un estado "Positivo/Correcto"
         comments:
-          newStatus === 'NORMAL' || newStatus === 'SI' || newStatus === true
+          newStatus === 'NORMAL' ||
+          newStatus === 'SI' ||
+          newStatus === 'SIN_FUGA' ||
+          newStatus === true
             ? ''
             : prev[id].comments,
       },
     }));
   };
 
-  // FIX: Tipamos id y text
   const handleCommentChange = (id: string, text: string) => {
     setEvaluations((prev) => ({
       ...prev,
@@ -185,17 +213,17 @@ export default function DailyReportCongelados() {
     }));
   };
 
-  // FIX: Tipamos 'e' y lo manejamos opcionalmente para que funcione en Form y Button
+  // FIX: Se cambió el tipado de `e` a `any` para aceptar tanto eventos nativos (form) como de Cloudscape (Button)
   const handleSubmit = (e?: any) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
+    if (e && e.preventDefault) e.preventDefault();
     setShowErrorAlert(false);
 
+    // Validación estricta: Si hay una anomalía, se exige justificación
     const hasErrors = Object.values(evaluations).some(
       (evalItem) =>
         (evalItem.status === 'ANORMAL' ||
           evalItem.status === 'FALLA' ||
+          evalItem.status === 'CON_FUGA' ||
           evalItem.status === 'NO') &&
         evalItem.comments?.trim() === '',
     );
@@ -219,12 +247,13 @@ export default function DailyReportCongelados() {
 
     setTimeout(() => {
       setIsSubmitting(false);
-      alert(`Reporte Diario de Congelados (Turno ${turno.value}) guardado.`);
+      alert(
+        `Reporte Diario de Congelados (Turno ${turno.value}) guardado exitosamente.`,
+      );
     }, 1500);
   };
 
-  // Componente reutilizable para renderizar filas del formulario con estilo dinámico
-  // FIX: Tipamos item y options
+  // Renderizador dinámico de filas (DRY)
   const renderRow = (item: any, options: any[]) => {
     const currentEval = evaluations[item.id];
     if (!currentEval) return null;
@@ -232,12 +261,15 @@ export default function DailyReportCongelados() {
     const requiresComment =
       currentEval.status === 'ANORMAL' ||
       currentEval.status === 'FALLA' ||
+      currentEval.status === 'CON_FUGA' ||
       currentEval.status === 'NO';
+
     const isMissingComment =
       showErrorAlert && requiresComment && currentEval.comments.trim() === '';
 
-    // Color del borde dependiendo del estado (Naranja para Anormal/No, Rojo para Falla)
-    const borderColor = currentEval.status === 'FALLA' ? '#d13212' : '#ff9900';
+    // Lógica de color de borde según gravedad
+    let borderColor = '#ff9900'; // Naranja para advertencias (Anormal, No, Con Fuga)
+    if (currentEval.status === 'FALLA') borderColor = '#d13212'; // Rojo para fallas totales
 
     return (
       <div
@@ -257,9 +289,9 @@ export default function DailyReportCongelados() {
           <div
             style={{ display: 'flex', alignItems: 'center', height: '100%' }}
           >
-            {/* FIX: variant 'span' no existe nativamente, forzamos as any */}
+            {/* @ts-ignore */}
             <Box
-              variant={'span' as any}
+              variant="span"
               fontSize="body-m"
               fontWeight={requiresComment ? 'bold' : 'normal'}
             >
@@ -287,11 +319,10 @@ export default function DailyReportCongelados() {
             }}
           >
             <FormField
-              label={`Observaciones / Comentarios (${currentEval.status})`}
-              description="Obligatorio para justificar este estado."
+              label={`Justificación obligatoria (${currentEval.status})`}
               errorText={
                 isMissingComment
-                  ? 'Debe describir la anomalía o acción tomada.'
+                  ? 'Debe describir la anomalía, fuga o acción tomada.'
                   : null
               }
             >
@@ -300,7 +331,7 @@ export default function DailyReportCongelados() {
                 onChange={({ detail }) =>
                   handleCommentChange(item.id, detail.value)
                 }
-                placeholder="Describa el problema, ruidos extraños, fugas o acciones correctivas..."
+                placeholder="Describa el problema, fugas detectadas, o acciones correctivas..."
                 rows={2}
               />
             </FormField>
@@ -324,7 +355,6 @@ export default function DailyReportCongelados() {
         style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}
       >
         <Navbar />
-        {/* FIX: Ignoramos TS para las props de SecondaryHeader */}
         {/* @ts-ignore */}
         <SecondaryHeader
           breadcrumbs={[
@@ -363,27 +393,25 @@ export default function DailyReportCongelados() {
                 }
                 errorText={
                   showErrorAlert
-                    ? 'Faltan comentarios en las evaluaciones marcadas con Anormal o Falla.'
+                    ? 'Faltan comentarios en las evaluaciones marcadas con incidencias (Anormal, Falla, Fuga, No).'
                     : null
                 }
               >
                 <SpaceBetween size="l">
                   <Header
                     variant="h1"
-                    description="Realice la inspección física de los equipos. Las evaluaciones marcadas como 'Anormal' o 'Falla' requerirán justificación obligatoria."
+                    description="Inspección física de equipos. Las incidencias exigen justificación."
                   >
                     Reporte Diario: Maquinaria Congelados
                   </Header>
 
-                  {/* CABECERA (TURNO Y FECHA) */}
                   <Container>
                     <ColumnLayout columns={2}>
                       <FormField label="Turno a Reportar">
                         <Select
                           selectedOption={turno}
-                          // FIX: as any
                           onChange={({ detail }) =>
-                            setTurno(detail.selectedOption as any)
+                            setTurno(detail.selectedOption as SelectOption)
                           }
                           options={[
                             { label: 'Turno A', value: 'A' },
@@ -405,7 +433,7 @@ export default function DailyReportCongelados() {
                     </ColumnLayout>
                   </Container>
 
-                  {/* MODULO 1: MAQUINARIA */}
+                  {/* 1. MAQUINARIA */}
                   <ExpandableSection
                     headerText="1. FUNCIONAMIENTO DE MAQUINARIA"
                     variant="container"
@@ -416,94 +444,90 @@ export default function DailyReportCongelados() {
                     )}
                   </ExpandableSection>
 
-                  {/* MODULO 2: CUARTOS FRIOS */}
+                  {/* 2. CUARTOS FRIOS */}
                   <ExpandableSection
-                    headerText="2. DIFUSORES EN CUARTOS FRIOS"
+                    headerText="2. DIFUSORES EN CUARTOS FRÍOS"
                     variant="container"
+                    defaultExpanded
                   >
                     {SCHEMA.cuartos.map((item) =>
                       renderRow(item, OPCIONES_TRES_ESTADOS),
                     )}
                   </ExpandableSection>
 
+                  {/* 3. DOSIFICADORES (Grid dividido) */}
                   <Grid
                     gridDefinition={[
                       { colspan: { default: 12, l: 6 } },
                       { colspan: { default: 12, l: 6 } },
                     ]}
                   >
-                    {/* MODULO 3 Y 4: DOSIFICADORES */}
-                    <SpaceBetween size="l">
-                      <Container
-                        header={<Header variant="h3">CONDENSADOR FRICK</Header>}
-                      >
-                        {renderRow(
-                          SCHEMA.dosificadores[0],
-                          OPCIONES_DOSIFICADORES,
-                        )}
-                      </Container>
-                      <Container
-                        header={<Header variant="h3">TORRE PROTEC</Header>}
-                      >
-                        {renderRow(
-                          SCHEMA.dosificadores[1],
-                          OPCIONES_DOSIFICADORES,
-                        )}
-                      </Container>
-                    </SpaceBetween>
-
-                    {/* MODULO 5 Y 6: REJILLAS Y ECOCHILLER */}
-                    <SpaceBetween size="l">
-                      <Container
-                        header={
-                          <Header variant="h3">
-                            INSPECCIÓN REJILLAS DE AIRE
-                          </Header>
-                        }
-                      >
-                        {renderRow(
-                          SCHEMA.aisladosABC[0],
-                          OPCIONES_TRES_ESTADOS,
-                        )}
-                      </Container>
-                      <Container
-                        header={
-                          <Header variant="h3">SISTEMA ECOCHILLER</Header>
-                        }
-                      >
-                        {renderRow(
-                          SCHEMA.aisladosABC[1],
-                          OPCIONES_TRES_ESTADOS,
-                        )}
-                      </Container>
-                    </SpaceBetween>
+                    <ExpandableSection
+                      headerText="CONDENSADOR FRICK"
+                      variant="container"
+                      defaultExpanded
+                    >
+                      {renderRow(
+                        SCHEMA.dosificadores[0],
+                        OPCIONES_DOSIFICADORES,
+                      )}
+                    </ExpandableSection>
+                    <ExpandableSection
+                      headerText="TORRE PROTEC"
+                      variant="container"
+                      defaultExpanded
+                    >
+                      {renderRow(
+                        SCHEMA.dosificadores[1],
+                        OPCIONES_DOSIFICADORES,
+                      )}
+                    </ExpandableSection>
                   </Grid>
 
-                  {/* MODULO 7: AIRE ACONDICIONADO */}
-                  <Container
-                    header={
-                      <Header variant="h2">SISTEMA DE ACONDICIONADO</Header>
-                    }
+                  {/* 4. AIRE ACONDICIONADO */}
+                  <ExpandableSection
+                    headerText="SISTEMA DE AIRE ACONDICIONADO"
+                    variant="container"
+                    defaultExpanded
                   >
                     {SCHEMA.acondicionado.map((item) =>
                       renderRow(item, OPCIONES_TRES_ESTADOS),
                     )}
-                  </Container>
+                  </ExpandableSection>
 
-                  {/* MODULO 8: DETECCION DE AMONIACO */}
-                  <Container
-                    header={
-                      <Header variant="h2">
-                        SISTEMA DE DETECCIÓN DE AMONIACO
-                      </Header>
-                    }
+                  {/* 5. SISTEMAS AISLADOS E INSPECCIONES (Rejillas, Deshielo, Ecochiller) */}
+                  <ExpandableSection
+                    headerText="INSPECCIONES OPERATIVAS Y SISTEMAS"
+                    variant="container"
+                    defaultExpanded
                   >
-                    {SCHEMA.amoniaco.map((item) =>
-                      renderRow(item, OPCIONES_DOS_ESTADOS_AMONIACO),
+                    {SCHEMA.sistemas_aislados.map((item) =>
+                      renderRow(item, OPCIONES_TRES_ESTADOS),
                     )}
-                  </Container>
+                  </ExpandableSection>
 
-                  {/* MODULO 9 Y OBSERVACIONES FINALES */}
+                  {/* 6. AMONIACO Y FUGAS */}
+                  <ExpandableSection
+                    headerText="DETECCIÓN Y FUGAS DE AMONIACO"
+                    variant="container"
+                    defaultExpanded
+                  >
+                    <SpaceBetween size="m">
+                      <Box variant="h4">SISTEMA DE DETECCIÓN (SENSORES)</Box>
+                      {SCHEMA.amoniaco.map((item) =>
+                        renderRow(item, OPCIONES_DOS_ESTADOS_AMONIACO),
+                      )}
+
+                      <Box variant="h4" margin={{ top: 'l' }}>
+                        INSPECCIÓN DRAGER
+                      </Box>
+                      {SCHEMA.fugas_drager.map((item) =>
+                        renderRow(item, OPCIONES_FUGAS_DRAGER),
+                      )}
+                    </SpaceBetween>
+                  </ExpandableSection>
+
+                  {/* 7. LIMPIEZA Y OBSERVACIONES FINALES */}
                   <Grid
                     gridDefinition={[
                       { colspan: { default: 12, m: 5 } },
@@ -525,14 +549,14 @@ export default function DailyReportCongelados() {
                             )
                           }
                         >
-                          Limpieza Completada en este Turno
+                          Limpieza Completada
                         </Checkbox>
                       </FormField>
                     </Container>
 
                     <Container
                       header={
-                        <Header variant="h3">OBSERVACIONES GENERALES</Header>
+                        <Header variant="h3">OBSERVACIONES FINALES</Header>
                       }
                     >
                       <Textarea

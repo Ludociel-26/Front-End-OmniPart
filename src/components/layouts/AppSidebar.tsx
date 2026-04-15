@@ -1,347 +1,340 @@
 import * as React from 'react';
 import SideNavigation from '@cloudscape-design/components/side-navigation';
+import Badge from '@cloudscape-design/components/badge';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// Importamos tus estilos
-import './styles/sidebar.css';
-
-export default function GlobalSidebar() {
+export default () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Sincronizamos la ruta actual con el botón activo en el menú
-  const [activeHref, setActiveHref] = React.useState(location.pathname);
+  // Sincronizamos el resaltado del menú con la URL actual del navegador
+  const [activeHref, setActiveHref] = React.useState(
+    location.pathname + location.hash,
+  );
 
   React.useEffect(() => {
-    setActiveHref(location.pathname);
-  }, [location.pathname]);
+    setActiveHref(location.pathname + location.hash);
+  }, [location.pathname, location.hash]);
+
+  // Estilos constantes para las etiquetas tipo AWS Console
+  // Función para generar el estilo de puntos gruesos de AWS
+  const getAwsDottedStyle = (color: string): React.CSSProperties => ({
+    fontSize: '11px',
+    fontWeight: 700,
+    marginLeft: '6px',
+    color: color,
+    paddingBottom: '0px',
+    display: 'inline-block',
+    cursor: 'pointer',
+    pointerEvents: 'none',
+    // TRUCO SENIOR: Usamos un degradado repetitivo para crear puntos definidos y gruesos
+    backgroundImage: `linear-gradient(to right, ${color} 20%, rgba(255,255,255,0) 0%)`,
+    backgroundPosition: 'bottom',
+    backgroundSize: '4px 1.5px', // 4px de ancho total, 1.5px de grosor del punto
+    backgroundRepeat: 'repeat-x',
+  });
+
+  const newStyle = getAwsDottedStyle('#0073bb');
+  const betaStyle = getAwsDottedStyle('#ec7211');
 
   return (
-    <div className="global-sidebar-container">
-      <SideNavigation
-        activeHref={activeHref}
-        header={{
-          href: '/services',
-          text: 'Servicios',
-        }}
-        onFollow={(event) => {
-          if (!event.detail.external) {
-            event.preventDefault();
-            setActiveHref(event.detail.href);
-            navigate(event.detail.href);
-          }
-        }}
-        items={[
-          {
-            type: 'link',
-            text: 'Panel',
-            href: '/dashboard',
-          },
-          { type: 'divider' },
+    <SideNavigation
+      activeHref={activeHref}
+      header={{ href: '/services', text: 'Servicios' }}
+      onFollow={(event) => {
+        if (!event.detail.external) {
+          event.preventDefault();
+          // Navegación a través del Router para evitar recargas
+          navigate(event.detail.href);
+        }
+      }}
+      items={[
+        {
+          type: 'link',
+          text: 'Panel',
+          href: '/dashboard',
+          info: <span style={betaStyle}>Beta</span>,
+        },
+        { type: 'divider' },
+        // ==========================================
+        // 1. DOCUMENTACIÓN
+        // ==========================================
+        {
+          type: 'section-group',
+          title: 'Documentación',
+          items: [
+            {
+              type: 'link',
+              text: 'Front-Doc',
+              href: '#/page2',
+              external: true,
+              info: <span style={newStyle}>New</span>,
+            },
+            {
+              type: 'link',
+              text: 'Back-Doc',
+              href: '#/page3',
+              external: true,
+              info: <span style={newStyle}>New</span>,
+            },
+            {
+              type: 'link',
+              text: 'DinoV2',
+              href: 'https://angelamartinez20-dinov2-5.mintlify.app/',
+              external: true,
+              info: <span style={betaStyle}>Beta</span>,
+            },
+          ],
+        },
+        { type: 'divider' },
+        // ==========================================
+        // 2. ALMACÉN E INVENTARIO
+        // ==========================================
+        {
+          type: 'section-group',
+          title: 'Almacén',
+          items: [
+            {
+              type: 'link',
+              text: 'Visión General',
+              href: '/almacen',
+              info: <span style={newStyle}>New</span>,
+            },
+            {
+              type: 'section',
+              text: 'Inventario',
+              items: [
+                {
+                  type: 'link',
+                  text: 'General',
+                  href: '/inventory',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Asignación',
+                  href: '/inventory/uses-for-spare-parts',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Ubicaciones',
+                  href: '/inventory/locations-item',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Proveedores',
+                  href: '/inventory/supplier-item',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Inteligencia Visual',
+                  href: '/inventory/visual-comparator',
+                  info: <span style={betaStyle}>Beta</span>,
+                },
+              ],
+            },
+          ],
+        },
+        { type: 'divider' },
+        // ==========================================
+        // 2. MANTENIMIENTO
+        // ==========================================
 
-          // ==========================================
-          // 1. ALMACÉN E INVENTARIO (Desplegable Principal)
-          // ==========================================
-          {
-            type: 'expandable-link-group',
-            text: 'Almacén',
-            href: '/almacen', // Al hacer clic en el título, navega al Landing y expande el menú
-            items: [
-              {
-                type: 'link',
-                text: 'Visión General',
-                href: '/almacen',
-              },
-              {
-                type: 'expandable-link-group',
-                text: 'Inventario General',
-                href: '/inventory',
-                items: [
-                  {
-                    type: 'link',
-                    text: 'Visual Comparator',
-                    href: '/inventory/visual-comparator',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Recepción Rápida',
-                    href: '/almacen/entradas/recepcion',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Control de Calidad',
-                    href: '/almacen/entradas/calidad',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Devoluciones',
-                    href: '/almacen/entradas/devoluciones',
-                  },
-                ],
-              },
-              {
-                type: 'expandable-link-group',
-                text: 'Proveedores',
-                href: '/almacen/salidas',
-                items: [
-                  {
-                    type: 'link',
-                    text: 'Pedidos / Solicitudes',
-                    href: '/almacen/salidas/pedidos',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Lista de Picking',
-                    href: '/almacen/salidas/picking',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Mesa de Empaque',
-                    href: '/almacen/salidas/empaque',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Guías de Envío',
-                    href: '/almacen/salidas/envios',
-                  },
-                ],
-              },
-              {
-                type: 'expandable-link-group',
-                text: 'Control de Inventario',
-                href: '/almacen/inventario',
-                items: [
-                  {
-                    type: 'link',
-                    text: 'Consulta de Stock',
-                    href: '/almacen/inventario/stock',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Ajustes',
-                    href: '/almacen/inventario/ajustes',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Conteo Cíclico',
-                    href: '/almacen/inventario/conteo',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Kárdex',
-                    href: '/almacen/inventario/kardex',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Transferencias',
-                    href: '/almacen/inventario/transferencias',
-                  },
-                ],
-              },
-              {
-                type: 'expandable-link-group',
-                text: 'Catálogos Maestros',
-                href: '/almacen/catalogos',
-                items: [
-                  {
-                    type: 'link',
-                    text: 'Productos (SKU)',
-                    href: '/almacen/catalogos/productos',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Proveedores',
-                    href: '/almacen/catalogos/proveedores',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Ubicaciones',
-                    href: '/almacen/catalogos/ubicaciones',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Categorías',
-                    href: '/almacen/catalogos/categorias',
-                  },
-                ],
-              },
-            ],
-          },
-          { type: 'divider' },
-
-          // ==========================================
-          // 2. MANTENIMIENTO (Desplegable Principal)
-          // ==========================================
-          {
-            type: 'expandable-link-group',
-            text: 'Mantenimiento',
-            href: '/maintenance',
-            items: [
-              { type: 'link', text: 'Visión General', href: '/maintenance' },
-              {
-                type: 'link',
-                text: 'Checklists Pre-Operativos',
-                href: '/maintenance/checklists-pre-operativos',
-              },
-              {
-                type: 'link',
-                text: 'Nueva Inspección',
-                href: '/maintenance/perform-inspection',
-              },
-              {
-                type: 'link',
-                text: 'Telemetría e Históricos',
-                href: '/mantenimiento/equipos',
-              },
-              {
-                type: 'link',
-                text: 'Captura de Telemetría',
-                href: '/maintenance/telemetry-entry',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora de Vapor Logs',
-                href: '/maintenance/vapor-logs-table',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora Central de Vapor',
-                href: '/maintenance/bitacora-central-vapor',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora de Aire Logs',
-                href: '/maintenance/air-logs-table',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora Compresor de Aire',
-                href: '/maintenance/air-compressor-entry',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora de Químicos Logs',
-                href: '/maintenance/chemical-analysis-logs-table',
-              },
-              {
-                type: 'link',
-                text: 'Bitácora Análisis Químicos',
-                href: '/maintenance/chemical-analysis-entry',
-              },
-              {
-                type: 'link',
-                text: 'Informes Diarios de Maquinaria Congelados',
-                href: '/maintenance/daily-reports-frozen-machinery',
-              },
-              {
-                type: 'link',
-                text: 'Reporte Diario: Maquinaria Refrigerados',
-                href: '/maintenance/daily-reports-refrigerated-machinery',
-              },
-              {
-                type: 'link',
-                text: 'Cuarto Frio5',
-                href: '/maintenance/cuarto-frio5-telemetry-entry',
-              },
-              {
-                type: 'link',
-                text: 'Refrigeración (Refrigerados)',
-                href: '/maintenance/daily-reports-refrigeration-refrigerated',
-              },
-              {
-                type: 'link',
-                text: 'Activos (Maquinaria)',
-                href: '/mantenimiento/ordenes',
-              },
-              {
-                type: 'link',
-                text: 'Rutinas y Bitácoras (Operación Diaria)',
-                href: '/mantenimiento/preventivo',
-              },
-              {
-                type: 'link',
-                text: 'Reportes Oficiales',
-                href: '/mantenimiento/solicitudes',
-              },
-              {
-                type: 'link',
-                text: 'Plan de Limpieza',
-                href: '/cleaning-plan-page',
-                external: true,
-              },
-              {
-                type: 'link',
-                text: 'Plan de Mondini 2',
-                href: '/cleaning-plan-mondini-2',
-                external: true,
-              },
-              {
-                type: 'link',
-                text: 'Plan de Mondini 3',
-                href: '/cleaning-plan-mondini-3',
-                external: true,
-              },
-            ],
-          },
-          { type: 'divider' },
-
-          // ==========================================
-          // 3. ADMINISTRACIÓN DEL SISTEMA (Desplegable Principal)
-          // ==========================================
-          {
-            type: 'expandable-link-group',
-            text: 'Administración',
-            href: '/admin',
-            items: [
-              {
-                type: 'link',
-                text: 'Centro de Administración',
-                href: '/administration',
-              },
-              { type: 'link', text: 'Cuenta', href: '/admin' },
-              {
-                type: 'expandable-link-group',
-                text: 'Usuarios',
-                href: '/admin/user',
-                items: [
-                  {
-                    type: 'link',
-                    text: 'Áreas Operativas',
-                    href: '/admin/areastable',
-                  },
-                  { type: 'link', text: 'Roles', href: '/admin/rolestable' },
-                  {
-                    type: 'link',
-                    text: 'Ubicaciones',
-                    href: '/almacen/catalogos/ubicaciones',
-                  },
-                  {
-                    type: 'link',
-                    text: 'Categorías',
-                    href: '/almacen/catalogos/categorias',
-                  },
-                ],
-              },
-              {
-                type: 'link',
-                text: 'Auditoría y Logs',
-                href: '/admin/auditoria',
-              },
-              { type: 'divider' },
-              {
-                type: 'link',
-                text: 'Ajustes Globales',
-                href: '/admin/configuracion',
-              },
-              {
-                type: 'link',
-                text: 'Configuración',
-                href: '/admin/info',
-              },
-            ],
-          },
-        ]}
-      />
-    </div>
+        {
+          type: 'section-group',
+          title: 'Mantenimiento',
+          items: [
+            {
+              type: 'link',
+              text: 'Visión General',
+              href: '/maintenance',
+              info: <span style={newStyle}>New</span>,
+            },
+            {
+              type: 'section',
+              text: 'Bitácoras',
+              items: [
+                {
+                  type: 'link',
+                  text: 'Registro de Pre-Operativos',
+                  href: '/maintenance/checklists-pre-operativos',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Registro Central de Vapor',
+                  href: '/maintenance/vapor-logs-table',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Registro Compresor de Aire',
+                  href: '/maintenance/air-logs-table',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Registro Análisis Químicos',
+                  href: '/maintenance/chemical-analysis-logs-table',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
+              ],
+            },
+            {
+              type: 'section',
+              text: 'Telemetría',
+              items: [
+                {
+                  type: 'link',
+                  text: 'Nueva Inspección Pre-Operativa',
+                  href: '/maintenance/perform-inspection',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Central de Vapor-test plantilla',
+                  href: '/maintenance/bitacora-central-vapor',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Central de Vapor Div',
+                  href: '/maintenance/telemetry-entry',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Compresor de Aire',
+                  href: '/maintenance/air-compressor-entry',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Análisis Químicos',
+                  href: '/maintenance/chemical-analysis-entry',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Maquinaria Congelados',
+                  href: '/maintenance/daily-reports-frozen-machinery',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Maquinaria Refrigerados',
+                  href: '/maintenance/daily-reports-refrigerated-machinery',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'División Refrigerados',
+                  href: '/maintenance/daily-reports-refrigeration-refrigerated',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Compresores Cuarto Frío #5',
+                  href: '/maintenance/cuarto-frio5-telemetry-entry',
+                  info: <span style={newStyle}>New</span>,
+                },
+              ],
+            },
+            { type: 'link', text: 'Page 7', href: '#/page7' },
+            {
+              type: 'expandable-link-group',
+              text: 'Expandable link group',
+              href: '#/exp-link-group',
+              items: [
+                { type: 'link', text: 'Page 8', href: '#/page8' },
+                { type: 'link', text: 'Page 9', href: '#/page9' },
+              ],
+            },
+            { type: 'link', text: 'Page 10', href: '#/page10' },
+            {
+              type: 'link-group',
+              text: 'Link group',
+              href: '#/link-group',
+              items: [
+                { type: 'link', text: 'Page 11', href: '#/page11' },
+                { type: 'link', text: 'Page 12', href: '#/page12' },
+              ],
+            },
+            {
+              type: 'link',
+              text: 'Plan de Limpieza',
+              href: '#/cleaning-plan-page',
+              external: true,
+            },
+          ],
+        },
+        { type: 'divider' },
+        {
+          type: 'section-group',
+          title: 'Centro de Administración',
+          items: [
+            {
+              type: 'link',
+              text: 'Visión General',
+              href: '/administration',
+              info: <span style={newStyle}>New</span>,
+            },
+            {
+              type: 'section',
+              text: 'User',
+              items: [
+                {
+                  type: 'link',
+                  text: 'User Info',
+                  href: '/admin/user-inf',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Users',
+                  href: '/admin/user',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Editar Usuario',
+                  href: '/admin/user-edit/:userId',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Role',
+                  href: '/admin/rolestable',
+                  info: <span style={newStyle}>New</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Area',
+                  href: '/admin/areastable',
+                  info: <span style={newStyle}>New</span>,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: 'link',
+          text: 'Notifications',
+          href: '#/notifications',
+          info: <Badge color="red">23</Badge>,
+        },
+        {
+          type: 'link',
+          text: 'System Info',
+          href: '/admin/info',
+          external: true,
+          externalIconAriaLabel: 'Opens in a new tab',
+          info: <span style={newStyle}>New</span>,
+        },
+      ]}
+    />
   );
-}
+};

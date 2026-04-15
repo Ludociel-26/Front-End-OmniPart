@@ -87,25 +87,15 @@ const QuickFindNav = () => {
       <TopNavigation
         identity={{
           href: '#',
-          title: 'QuickFind',
+          title: 'QuickFind OS',
           logo: {
             src: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMgN3YyYTMgMyAwIDAgMCAzIDNoM20tNi01YTMgMyAwIDAgMSAzLTNoM20wIDE0SDZhMyAzIDAgMCAxLTMtM3YtMm0xMiA1aDNhMyAzIDAgMCAwIDMtM3YtMm0tNS0xMGgzYTMgMyAwIDAgMSAzIDN2MiIvPjwvc3ZnPg==',
             alt: 'Logo',
           },
         }}
         utilities={[
-          {
-            type: 'button',
-            text: 'Protocolo de Limpieza',
-            variant: 'link',
-            href: '#/cleaning-plan-page',
-          },
-          {
-            type: 'button',
-            text: 'Telemetría',
-            variant: 'link',
-            href: '#/maintenance/perform-inspection',
-          },
+          { type: 'button', text: 'Motor DINO', variant: 'link' },
+          { type: 'button', text: 'Telemetría', variant: 'link' },
           {
             type: 'button',
             text: 'Consola Admin',
@@ -817,7 +807,7 @@ const QuickFindFooter = () => (
         </div>
         <div className="flex flex-col">
           <span className="text-gray-200 font-bold text-sm tracking-widest">
-            QUICKFIND
+            QUICKFIND OS
           </span>
           <span className="mt-1">
             © 2026. Infraestructura Logística Avanzada.
@@ -896,21 +886,14 @@ export default function QuickFindLanding() {
           </h1>
 
           <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-3xl leading-relaxed">
-            QuickFind unifica el rastreo visual, telemetría y gestión de sanidad
-            en un solo lugar impulsado por inteligencia artificial.
+            Unifica el rastreo visual, telemetría IoT de cuartos fríos y gestión
+            de sanidad en un solo SO industrial impulsado por inteligencia
+            artificial.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
-            <Button
-              variant="primary"
-              href="https://ludociel-26-api-back-end-quickfind.mintlify.app/introduction"
-            >
-              Agendar Implementación
-            </Button>
-            <Button
-              href="https://ludociel-26-front-end-quickfind.mintlify.app"
-              variant="normal"
-            >
+            <Button variant="primary">Agendar Implementación</Button>
+            <Button variant="normal">
               Arquitectura Técnica <Code size={16} className="inline ml-1" />
             </Button>
           </div>

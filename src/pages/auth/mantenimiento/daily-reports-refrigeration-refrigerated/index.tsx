@@ -12,7 +12,7 @@ import {
   Box,
   ColumnLayout,
   Grid,
-  Alert, // <-- Ahora sí lo vamos a utilizar
+  Alert,
   Textarea,
 } from '@cloudscape-design/components';
 
@@ -21,67 +21,119 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
-// --- ESQUEMA MAESTRO: TELEMETRÍA REFRIGERADOS (2.2-16-3-12) ---
+// --- TIPOS DE DATOS LOCALES ---
+// Evita errores de exportación de Cloudscape en Vite
+interface SelectOption {
+  label: string;
+  value: string;
+}
+
+// --- ESQUEMA MAESTRO: CONGELADOS (Extraído de IMG_0260.jpg) ---
 const SCHEMA = {
-  // Las métricas horarias que se repiten para los 3 compresores
   compresores: [1, 2, 3],
   metricasCompresor: [
-    { id: 'pres_succ', label: 'Presión Succión', unit: 'PSI' },
-    { id: 'pres_desc', label: 'Presión Descarga', unit: 'PSI' },
-    { id: 'pres_aceite', label: 'Presión de Aceite', unit: 'PSI' },
-    { id: 'voltaje', label: 'Voltaje', unit: 'V' },
-    { id: 'ampers', label: 'Ampers', unit: 'A' },
+    {
+      id: 'pres_succ',
+      label: 'Presión Succión',
+      unit: 'Psig',
+      desc: '4 In Hg a 1 Psig',
+      min: -4,
+      max: 1,
+    },
+    {
+      id: 'pres_aceite_1',
+      label: 'Presión Aceite 1',
+      unit: 'Psig',
+      desc: '180 a 250',
+      min: 180,
+      max: 250,
+    },
+    {
+      id: 'pres_aceite_2',
+      label: 'Presión Aceite 2',
+      unit: 'Psig',
+      desc: '180 a 250',
+      min: 180,
+      max: 250,
+    },
+    {
+      id: 'pres_desc',
+      label: 'Presión Descarga',
+      unit: 'Psig',
+      desc: '160 a 210',
+      min: 160,
+      max: 210,
+    },
+    {
+      id: 'voltaje',
+      label: 'Voltaje',
+      unit: 'Volts',
+      desc: '440 a 480',
+      min: 440,
+      max: 480,
+    },
+    {
+      id: 'ampers',
+      label: 'Ampers',
+      unit: 'Amp',
+      desc: '250 a 330',
+      min: 250,
+      max: 330,
+    },
+    { id: 'sv', label: 'SV%', unit: '%', desc: '70 a 80 %', min: 70, max: 80 },
+    {
+      id: 'temp_motor',
+      label: 'Temp. Motor',
+      unit: '°C',
+      desc: '80 a 90 °C',
+      min: 80,
+      max: 90,
+    },
   ],
-
-  // Parámetros de cierre/inicio de turno por compresor
   datosTurnoCompresor: [
-    { id: 'horometro', label: 'Horómetro (Inicio/Fin)', unit: 'Hrs' },
-    { id: 'nivel_aceite', label: 'Nivel de Aceite', unit: '%' },
+    {
+      id: 'nivel_aceite',
+      label: 'Nivel Aceite',
+      unit: 'Mirillas',
+      desc: '2 a 2.5',
+      min: 2,
+      max: 2.5,
+    },
+    { id: 'horas_motor', label: 'Inicio Horas (Motor)', unit: 'Hrs' },
+    { id: 'horas_compresor', label: 'Inicio Horas (Compresor)', unit: 'Hrs' },
   ],
-
-  // Cuartos Fríos con sus rangos extraídos del formato original
-  cuartosFrios: [
+  temperaturasArea: [
     {
-      id: 'cf_1',
-      label: 'Cuarto Frío No. 1',
-      desc: 'Rango: 0 a 3 °C',
-      min: 0,
-      max: 3,
+      id: 'frio_4',
+      label: '4-Frio',
+      desc: 'Rango: -26, -22, -18',
+      min: -26,
+      max: -18,
     },
     {
-      id: 'cf_2',
-      label: 'Cuarto Frío No. 2',
-      desc: 'Rango: 6 a 13 °C',
-      min: 6,
-      max: 13,
+      id: 'frio_3',
+      label: '3-Frio',
+      desc: 'Rango: -26, -22, -18',
+      min: -26,
+      max: -18,
     },
+    { id: 'ref_2', label: '2-Ref.', desc: 'Rango: 0, 2, 3', min: 0, max: 3 },
+    { id: 'seco_1', label: '1-Seco', desc: 'Rango: 0, 2, 3', min: 0, max: 3 },
+  ],
+  datosProceso: [
     {
-      id: 'cf_3',
-      label: 'Cuarto Frío No. 3',
-      desc: 'Rango: 0 a 3 °C',
-      min: 0,
-      max: 3,
+      id: 'tiempo_deshielo',
+      label: 'Tiempo de deshielo I.Q.F.',
+      unit: 'Minutos',
+      type: 'number',
     },
-    {
-      id: 'cf_4',
-      label: 'Cuarto Frío No. 4',
-      desc: 'Rango: 0 a 3 °C',
-      min: 0,
-      max: 3,
-    },
-    {
-      id: 'cf_5',
-      label: 'Cuarto Frío No. 5',
-      desc: 'Rango: 0 a 3 °C',
-      min: 0,
-      max: 3,
-    },
+    { id: 'producto_congelar', label: 'Producto a congelar', type: 'text' },
   ],
 };
 
-// Generador de horas (Formato 24 hrs para cubrir los 3 turnos)
-const generateHourOptions = () => {
-  const options: any[] = [];
+// Generador de opciones de 24 horas
+const generateHourOptions = (): SelectOption[] => {
+  const options: SelectOption[] = [];
   for (let i = 0; i < 24; i++) {
     const hourString = i.toString().padStart(2, '0') + ':00';
     options.push({ label: hourString, value: hourString });
@@ -89,21 +141,26 @@ const generateHourOptions = () => {
   return options;
 };
 
-export default function RefrigeradosTelemetryEntry() {
+export default function CongeladosTelemetryEntry() {
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
-  const [hour, setHour] = useState<any>({ label: '07:00', value: '07:00' });
+  const [turno, setTurno] = useState<SelectOption>({
+    label: 'Turno A',
+    value: 'A',
+  });
+  const [hour, setHour] = useState<SelectOption>({
+    label: '07:00',
+    value: '07:00',
+  });
   const [observaciones, setObservaciones] = useState('');
 
   const [readings, setReadings] = useState<Record<string, any>>({});
 
-  // Inicialización dinámica del estado
+  // Inicializar estado dinámicamente según el esquema
   useEffect(() => {
     const initialReadings: Record<string, any> = {};
 
-    // Inicializar campos de los 3 Compresores
     SCHEMA.compresores.forEach((num) => {
       SCHEMA.metricasCompresor.forEach((metric) => {
         initialReadings[`c${num}_${metric.id}`] = '';
@@ -113,14 +170,16 @@ export default function RefrigeradosTelemetryEntry() {
       });
     });
 
-    // Inicializar campos de Cuartos Fríos
-    SCHEMA.cuartosFrios.forEach((cf) => {
-      initialReadings[cf.id] = '';
+    SCHEMA.temperaturasArea.forEach((temp) => {
+      initialReadings[temp.id] = '';
+    });
+    SCHEMA.datosProceso.forEach((proceso) => {
+      initialReadings[proceso.id] = '';
     });
 
     setReadings(initialReadings);
     setObservaciones('');
-  }, [hour.value, turno.value]); // Se limpia al cambiar de hora o turno
+  }, [hour.value, turno.value]); // Reset al cambiar turno o la hora
 
   const handleInputChange = (id: string, value: any) => {
     setReadings((prev) => ({ ...prev, [id]: value }));
@@ -128,24 +187,26 @@ export default function RefrigeradosTelemetryEntry() {
 
   const getValidationError = (metric: any, value: any) => {
     if (value === '' || value === undefined) return null;
+
+    // Ignorar validación numérica si no hay rangos definidos (ej. Producto a congelar)
+    if (metric.min === undefined && metric.max === undefined) return null;
+
     const num = parseFloat(value);
-    if (isNaN(num)) return 'Inválido';
+    if (isNaN(num)) return 'Debe ser un número';
     if (metric.min !== undefined && num < metric.min)
-      return `Min: ${metric.min}`;
+      return `Mín: ${metric.min}`;
     if (metric.max !== undefined && num > metric.max)
-      return `Max: ${metric.max}`;
+      return `Máx: ${metric.max}`;
     return null;
   };
 
+  // FIX: Cambiado 'e?: React.FormEvent' a 'e?: any' para que acepte eventos de formulario y de Cloudscape Button
   const handleSubmit = (e?: any) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
+    if (e && e.preventDefault) e.preventDefault();
     setIsSubmitting(true);
 
-    // Empaquetado estructurado para PostgreSQL (JSONB)
     const payload = {
-      assetArea: 'division_refrigerados',
+      assetArea: 'division_congelados',
       turno: turno.value,
       timestampHour: hour.value,
       telemetry: {
@@ -160,19 +221,23 @@ export default function RefrigeradosTelemetryEntry() {
             {},
           ),
         })),
-        cuartosFrios: SCHEMA.cuartosFrios.reduce(
+        temperaturas: SCHEMA.temperaturasArea.reduce(
           (acc, cf) => ({ ...acc, [cf.id]: readings[cf.id] }),
+          {},
+        ),
+        proceso: SCHEMA.datosProceso.reduce(
+          (acc, p) => ({ ...acc, [p.id]: readings[p.id] }),
           {},
         ),
       },
       observaciones,
     };
 
-    console.log('Payload Estructurado (Refrigerados):', payload);
+    console.log('Payload Guardado:', payload);
 
     setTimeout(() => {
       setIsSubmitting(false);
-      alert(`Lecturas de las ${hour.value} guardadas exitosamente.`);
+      alert(`Bitácora de Congelados (${hour.value}) guardada exitosamente.`);
     }, 1200);
   };
 
@@ -194,8 +259,8 @@ export default function RefrigeradosTelemetryEntry() {
         <SecondaryHeader
           breadcrumbs={[
             { text: 'Mantenimiento', href: '/' },
-            { text: 'Telemetría Operativa', href: '#' },
-            { text: 'Refrigeración (Refrigerados)', href: '#' },
+            { text: 'Telemetría', href: '#' },
+            { text: 'División Congelados', href: '#' },
           ]}
           isMenuOpen={navigationOpen}
           onMenuClick={() => setNavigationOpen(!navigationOpen)}
@@ -230,42 +295,43 @@ export default function RefrigeradosTelemetryEntry() {
                 <SpaceBetween size="l">
                   <Header
                     variant="h1"
-                    description="Capture la telemetría horaria de los 3 compresores y las temperaturas de los cuartos fríos."
+                    description="Reporte Diario de Refrigeración (Formato 2.2-16-3-13)"
                   >
-                    Bitácora Horaria: División Refrigerados
+                    División Congelados
                   </Header>
 
-                  {/* FIX: Se agregó el Alert que estaba importado pero sin usar */}
-                  <Alert type="info" header="Política de Registro de Turnos">
-                    Recuerde que los campos de{' '}
-                    <strong>Horómetro y Nivel de Aceite</strong> de los
-                    compresores solo deben llenarse al inicio de su turno o al
-                    momento de entregar la guardia al siguiente operador.
+                  <Alert type="info" header="Atención Operador">
+                    Las filas correspondientes a{' '}
+                    <strong>Nivel de Aceite e Inicio de Horas</strong> solo
+                    deben llenarse en las columnas aplicables al cambio de
+                    turno.
                   </Alert>
 
-                  {/* 1. CONTEXTO DE CAPTURA */}
+                  {/* 1. CONTEXTO */}
                   <Container
-                    header={<Header variant="h2">Datos del Registro</Header>}
+                    header={
+                      <Header variant="h2">Datos de Turno y Horario</Header>
+                    }
                   >
                     <ColumnLayout columns={2}>
-                      <FormField label="Turno">
+                      <FormField label="Turno Asignado">
                         <Select
                           selectedOption={turno}
                           onChange={({ detail }) =>
-                            setTurno(detail.selectedOption as any)
+                            setTurno(detail.selectedOption as SelectOption)
                           }
                           options={[
-                            { label: 'Turno A (07:00 a 15:00)', value: 'A' },
-                            { label: 'Turno B (15:00 a 23:00)', value: 'B' },
-                            { label: 'Turno C (23:00 a 07:00)', value: 'C' },
+                            { label: 'Turno A', value: 'A' },
+                            { label: 'Turno B', value: 'B' },
+                            { label: 'Turno C', value: 'C' },
                           ]}
                         />
                       </FormField>
-                      <FormField label="Hora de Lectura (CST)">
+                      <FormField label="Hora del Reporte">
                         <Select
                           selectedOption={hour}
                           onChange={({ detail }) =>
-                            setHour(detail.selectedOption as any)
+                            setHour(detail.selectedOption as SelectOption)
                           }
                           options={generateHourOptions()}
                         />
@@ -273,12 +339,12 @@ export default function RefrigeradosTelemetryEntry() {
                     </ColumnLayout>
                   </Container>
 
-                  {/* 2. COMPRESORES EN PARALELO (Grid de 3 Columnas) */}
+                  {/* 2. COMPRESORES EN PARALELO */}
                   <Grid
                     gridDefinition={[
-                      { colspan: { default: 12, l: 4 } },
-                      { colspan: { default: 12, l: 4 } },
-                      { colspan: { default: 12, l: 4 } },
+                      { colspan: { default: 12, xl: 4 } },
+                      { colspan: { default: 12, xl: 4 } },
+                      { colspan: { default: 12, xl: 4 } },
                     ]}
                   >
                     {SCHEMA.compresores.map((num) => (
@@ -287,7 +353,7 @@ export default function RefrigeradosTelemetryEntry() {
                         header={<Header variant="h2">Compresor {num}</Header>}
                       >
                         <SpaceBetween size="m">
-                          {/* Parámetros Horarios */}
+                          {/* Sección: Parámetros Horarios */}
                           <div
                             style={{
                               backgroundColor: '#fff',
@@ -300,15 +366,21 @@ export default function RefrigeradosTelemetryEntry() {
                               variant={'awsui-key-label' as any}
                               margin={{ bottom: 'm' }}
                             >
-                              Lecturas Horarias
+                              Parámetros en Tiempo Real
                             </Box>
-                            <ColumnLayout columns={1}>
+                            {/* Layout de 2 columnas para no hacer la tarjeta tan larga */}
+                            <ColumnLayout columns={2}>
                               {SCHEMA.metricasCompresor.map((metric) => {
                                 const inputId = `c${num}_${metric.id}`;
                                 return (
                                   <FormField
                                     key={inputId}
-                                    label={`${metric.label} (${metric.unit})`}
+                                    label={metric.label}
+                                    description={metric.desc}
+                                    errorText={getValidationError(
+                                      metric,
+                                      readings[inputId],
+                                    )}
                                   >
                                     <Input
                                       type="number"
@@ -321,7 +393,7 @@ export default function RefrigeradosTelemetryEntry() {
                                       onChange={({ detail }) =>
                                         handleInputChange(inputId, detail.value)
                                       }
-                                      placeholder="0.00"
+                                      placeholder="0"
                                     />
                                   </FormField>
                                 );
@@ -329,7 +401,7 @@ export default function RefrigeradosTelemetryEntry() {
                             </ColumnLayout>
                           </div>
 
-                          {/* Parámetros de Turno (Horómetro y Aceite) */}
+                          {/* Sección: Cierre de Turno */}
                           <div
                             style={{
                               backgroundColor: '#f0f8ff',
@@ -340,27 +412,22 @@ export default function RefrigeradosTelemetryEntry() {
                           >
                             <Box
                               variant={'awsui-key-label' as any}
-                              margin={{ bottom: 'xs' }}
+                              margin={{ bottom: 'm' }}
                             >
-                              Cierre / Inicio de Turno
+                              Registros de Guardia
                             </Box>
-                            <span
-                              style={{
-                                fontSize: '12px',
-                                color: '#545b64',
-                                display: 'block',
-                                marginBottom: '12px',
-                              }}
-                            >
-                              Llenar solo al inicio o fin del turno.
-                            </span>
                             <ColumnLayout columns={1}>
                               {SCHEMA.datosTurnoCompresor.map((metric) => {
                                 const inputId = `c${num}_${metric.id}`;
                                 return (
                                   <FormField
                                     key={inputId}
-                                    label={`${metric.label}`}
+                                    label={metric.label}
+                                    description={metric.desc}
+                                    errorText={getValidationError(
+                                      metric,
+                                      readings[inputId],
+                                    )}
                                   >
                                     <Input
                                       type="number"
@@ -385,52 +452,83 @@ export default function RefrigeradosTelemetryEntry() {
                     ))}
                   </Grid>
 
-                  {/* 3. TEMPERATURAS CUARTOS FRÍOS */}
+                  {/* 3. TEMPERATURAS Y PROCESO I.Q.F */}
                   <Container
                     header={
                       <Header variant="h2">
-                        Temperaturas de Cuartos Fríos (°C)
+                        Temperaturas y Operación I.Q.F.
                       </Header>
                     }
                   >
-                    <ColumnLayout columns={3} variant="text-grid">
-                      {SCHEMA.cuartosFrios.map((cf) => (
-                        <FormField
-                          key={cf.id}
-                          label={cf.label}
-                          description={cf.desc}
-                          errorText={getValidationError(cf, readings[cf.id])}
-                        >
-                          <Input
-                            type="number"
-                            step="any"
-                            value={
-                              readings[cf.id] !== undefined
-                                ? readings[cf.id]
-                                : ''
+                    <SpaceBetween size="l">
+                      <ColumnLayout columns={4} variant="text-grid">
+                        {SCHEMA.temperaturasArea.map((cf) => (
+                          <FormField
+                            key={cf.id}
+                            label={cf.label}
+                            description={cf.desc}
+                            errorText={getValidationError(cf, readings[cf.id])}
+                          >
+                            <Input
+                              type="number"
+                              step="any"
+                              value={
+                                readings[cf.id] !== undefined
+                                  ? readings[cf.id]
+                                  : ''
+                              }
+                              onChange={({ detail }) =>
+                                handleInputChange(cf.id, detail.value)
+                              }
+                              placeholder="°C"
+                            />
+                          </FormField>
+                        ))}
+                      </ColumnLayout>
+                      <hr
+                        style={{ borderTop: '1px solid #eaeded', margin: '0' }}
+                      />
+                      <ColumnLayout columns={2} variant="text-grid">
+                        {SCHEMA.datosProceso.map((proceso) => (
+                          <FormField
+                            key={proceso.id}
+                            label={proceso.label}
+                            description={
+                              proceso.unit ? `En ${proceso.unit}` : ''
                             }
-                            onChange={({ detail }) =>
-                              handleInputChange(cf.id, detail.value)
-                            }
-                            placeholder="Ej. 2.5"
-                          />
-                        </FormField>
-                      ))}
-                    </ColumnLayout>
+                          >
+                            <Input
+                              type={proceso.type as 'text' | 'number'}
+                              value={
+                                readings[proceso.id] !== undefined
+                                  ? readings[proceso.id]
+                                  : ''
+                              }
+                              onChange={({ detail }) =>
+                                handleInputChange(proceso.id, detail.value)
+                              }
+                              placeholder={
+                                proceso.type === 'text' ? 'Ej. Brócoli' : '0'
+                              }
+                            />
+                          </FormField>
+                        ))}
+                      </ColumnLayout>
+                    </SpaceBetween>
                   </Container>
 
                   {/* 4. OBSERVACIONES */}
                   <Container
-                    header={<Header variant="h2">Observaciones</Header>}
+                    header={<Header variant="h2">Avisos Relevantes</Header>}
                   >
-                    <FormField label="Comentarios u ocurrencias de la hora">
+                    <FormField label="Observaciones del Turno">
                       <Textarea
                         value={observaciones}
                         onChange={({ detail }) =>
                           setObservaciones(detail.value)
                         }
-                        placeholder="Anote aquí cualquier equipo en mantenimiento, paros o anomalías..."
-                        rows={3}
+                        placeholder="Registre aquí reportes de mantenimiento, purgas o anomalías..."
+                        rows={2}
                       />
                     </FormField>
                   </Container>

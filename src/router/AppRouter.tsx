@@ -135,6 +135,10 @@ const UsesforSpareParts = React.lazy(
   () => import('@/pages/auth/almacén/UsesforSpareParts/UsesforSpareParts'),
 );
 
+const UserInf = React.lazy(
+  () => import('@/pages/auth/user-management/user-info/index'),
+);
+
 const InfoSystem = React.lazy(() => import('@/pages/auth/about/index'));
 
 const Services = React.lazy(() => import('@/pages/auth/services/index'));
@@ -468,6 +472,14 @@ const AppRouter = () => {
             element={
               <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
                 <UsesforSpareParts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/user-inf"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <UserInf />
               </ProtectedRoute>
             }
           />
