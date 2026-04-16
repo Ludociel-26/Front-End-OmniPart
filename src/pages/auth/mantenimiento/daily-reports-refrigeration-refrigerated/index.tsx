@@ -22,13 +22,12 @@ import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
 // --- TIPOS DE DATOS LOCALES ---
-// Evita errores de exportación de Cloudscape en Vite
 interface SelectOption {
   label: string;
   value: string;
 }
 
-// --- ESQUEMA MAESTRO: CONGELADOS (Extraído de IMG_0260.jpg) ---
+// --- ESQUEMA MAESTRO: CONGELADOS (Versión 6.0 - Actualizado) ---
 const SCHEMA = {
   compresores: [1, 2, 3],
   metricasCompresor: [
@@ -36,9 +35,9 @@ const SCHEMA = {
       id: 'pres_succ',
       label: 'Presión Succión',
       unit: 'Psig',
-      desc: '4 In Hg a 1 Psig',
+      desc: '-4 In Hg a 2 Psig',
       min: -4,
-      max: 1,
+      max: 2,
     },
     {
       id: 'pres_aceite_1',
@@ -60,9 +59,9 @@ const SCHEMA = {
       id: 'pres_desc',
       label: 'Presión Descarga',
       unit: 'Psig',
-      desc: '160 a 210',
-      min: 160,
-      max: 210,
+      desc: '150 a 200',
+      min: 150,
+      max: 200,
     },
     {
       id: 'voltaje',
@@ -80,21 +79,28 @@ const SCHEMA = {
       min: 250,
       max: 330,
     },
-    { id: 'sv', label: 'SV%', unit: '%', desc: '70 a 80 %', min: 70, max: 80 },
+    {
+      id: 'sv',
+      label: 'SV%',
+      unit: '%',
+      desc: '20 a 100 %',
+      min: 20,
+      max: 100,
+    },
     {
       id: 'temp_motor',
-      label: 'Temp. Motor',
+      label: 'Temperatura de Motor principal',
       unit: '°C',
-      desc: '80 a 90 °C',
-      min: 80,
-      max: 90,
+      desc: '40 a 80 °C',
+      min: 40,
+      max: 80,
     },
   ],
   datosTurnoCompresor: [
     {
       id: 'nivel_aceite',
       label: 'Nivel Aceite',
-      unit: 'Mirillas',
+      unit: 'Mirillas', // Se añade dinámicamente en el renderizado
       desc: '2 a 2.5',
       min: 2,
       max: 2.5,
@@ -131,7 +137,6 @@ const SCHEMA = {
   ],
 };
 
-// Generador de opciones de 24 horas
 const generateHourOptions = (): SelectOption[] => {
   const options: SelectOption[] = [];
   for (let i = 0; i < 24; i++) {
@@ -157,7 +162,6 @@ export default function CongeladosTelemetryEntry() {
 
   const [readings, setReadings] = useState<Record<string, any>>({});
 
-  // Inicializar estado dinámicamente según el esquema
   useEffect(() => {
     const initialReadings: Record<string, any> = {};
 
@@ -179,7 +183,7 @@ export default function CongeladosTelemetryEntry() {
 
     setReadings(initialReadings);
     setObservaciones('');
-  }, [hour.value, turno.value]); // Reset al cambiar turno o la hora
+  }, [hour.value, turno.value]);
 
   const handleInputChange = (id: string, value: any) => {
     setReadings((prev) => ({ ...prev, [id]: value }));
@@ -188,7 +192,6 @@ export default function CongeladosTelemetryEntry() {
   const getValidationError = (metric: any, value: any) => {
     if (value === '' || value === undefined) return null;
 
-    // Ignorar validación numérica si no hay rangos definidos (ej. Producto a congelar)
     if (metric.min === undefined && metric.max === undefined) return null;
 
     const num = parseFloat(value);
@@ -200,7 +203,6 @@ export default function CongeladosTelemetryEntry() {
     return null;
   };
 
-  // FIX: Cambiado 'e?: React.FormEvent' a 'e?: any' para que acepte eventos de formulario y de Cloudscape Button
   const handleSubmit = (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
     setIsSubmitting(true);
@@ -295,7 +297,7 @@ export default function CongeladosTelemetryEntry() {
                 <SpaceBetween size="l">
                   <Header
                     variant="h1"
-                    description="Reporte Diario de Refrigeración (Formato 2.2-16-3-13)"
+                    description="Reporte Diario de Refrigeración (Formato 2.2-16-3-13 v6.0)"
                   >
                     División Congelados
                   </Header>
@@ -303,8 +305,8 @@ export default function CongeladosTelemetryEntry() {
                   <Alert type="info" header="Atención Operador">
                     Las filas correspondientes a{' '}
                     <strong>Nivel de Aceite e Inicio de Horas</strong> solo
-                    deben llenarse en las columnas aplicables al cambio de
-                    turno.
+                    deben llenarse en las columnas aplicables al inicio o cierre
+                    de turno.
                   </Alert>
 
                   {/* 1. CONTEXTO */}
@@ -368,14 +370,14 @@ export default function CongeladosTelemetryEntry() {
                             >
                               Parámetros en Tiempo Real
                             </Box>
-                            {/* Layout de 2 columnas para no hacer la tarjeta tan larga */}
                             <ColumnLayout columns={2}>
                               {SCHEMA.metricasCompresor.map((metric) => {
                                 const inputId = `c${num}_${metric.id}`;
                                 return (
                                   <FormField
                                     key={inputId}
-                                    label={metric.label}
+                                    // FIX: Inyección de la unidad en el label para los parámetros del compresor
+                                    label={`${metric.label} ${metric.unit ? `(${metric.unit})` : ''}`}
                                     description={metric.desc}
                                     errorText={getValidationError(
                                       metric,
@@ -401,7 +403,7 @@ export default function CongeladosTelemetryEntry() {
                             </ColumnLayout>
                           </div>
 
-                          {/* Sección: Cierre de Turno */}
+                          {/* Sección: Inicio de Turno */}
                           <div
                             style={{
                               backgroundColor: '#f0f8ff',
@@ -410,11 +412,12 @@ export default function CongeladosTelemetryEntry() {
                               border: '1px solid #0972d3',
                             }}
                           >
+                            {/* FIX: Renombrado conceptual para mejor adaptabilidad al formato */}
                             <Box
                               variant={'awsui-key-label' as any}
                               margin={{ bottom: 'm' }}
                             >
-                              Registros de Guardia
+                              Parámetros de Inicio de Turno
                             </Box>
                             <ColumnLayout columns={1}>
                               {SCHEMA.datosTurnoCompresor.map((metric) => {
@@ -422,7 +425,8 @@ export default function CongeladosTelemetryEntry() {
                                 return (
                                   <FormField
                                     key={inputId}
-                                    label={metric.label}
+                                    // FIX: Inyección de la unidad en el label (Aquí se mostrará 'Mirillas' y 'Hrs')
+                                    label={`${metric.label} ${metric.unit ? `(${metric.unit})` : ''}`}
                                     description={metric.desc}
                                     errorText={getValidationError(
                                       metric,
