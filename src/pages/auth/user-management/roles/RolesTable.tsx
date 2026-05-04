@@ -14,6 +14,8 @@ import {
   Flashbar,
   CollectionPreferences,
   Input,
+  Modal,
+  FormField,
 } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 
@@ -26,10 +28,9 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
-// 👇 IMPORTACIÓN DE TU IMAGEN PARA EL ESTADO VACÍO 👇
+// Imagen estado vacío
 import emptyStateImage from '@/assets/table-items/robot-empty.svg';
 
-// --- ESTILOS CSS ---
 const awsStyles = `
   .awsui-table-row-selected > td {
     box-shadow: none !important;
@@ -49,7 +50,6 @@ const awsStyles = `
   }
 `;
 
-// --- INTERFACES ---
 export interface RoleItem {
   rol_id: number;
   name: string;
@@ -58,7 +58,6 @@ export interface RoleItem {
   updatedAt?: string;
 }
 
-// --- COMPONENTE: EMPTY STATE CON IMAGEN ---
 const EmptyState = ({
   title,
   subtitle,
@@ -67,43 +66,49 @@ const EmptyState = ({
   title: string;
   subtitle: string;
   action: React.ReactNode;
-}) => {
-  return (
-    <Box textAlign="center" color="inherit">
-      <Box padding={{ bottom: 's' }} variant="p" color="inherit">
-        <b>{title}</b>
-      </Box>
-      <Box padding={{ bottom: 's' }} variant="p" color="inherit">
-        {subtitle}
-      </Box>
-      <Box padding={{ bottom: 'l' }}>
-        <img
-          src={emptyStateImage}
-          alt="Estado vacío"
-          style={{
-            maxWidth: '250px',
-            width: '100%',
-            display: 'block',
-            margin: '0 auto',
-          }}
-        />
-      </Box>
-      {action}
+}) => (
+  <Box textAlign="center" color="inherit">
+    <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+      <b>{title}</b>
     </Box>
-  );
-};
+    <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+      {subtitle}
+    </Box>
+    <Box padding={{ bottom: 'l' }}>
+      <img
+        src={emptyStateImage}
+        alt="Estado vacío"
+        style={{
+          maxWidth: '250px',
+          width: '100%',
+          display: 'block',
+          margin: '0 auto',
+        }}
+      />
+    </Box>
+    {action}
+  </Box>
+);
 
 export default function RolesTable() {
-  // 🚩 CORRECCIÓN: Usamos la variable de entorno para la URL del backend
   const { alerts, addAlert, setPageLoading } = useContext(AppContent) || {};
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(false);
+
   const [rolesData, setRolesData] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItems, setSelectedItems] = useState<RoleItem[]>([]);
+
+  // Modales
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newRole, setNewRole] = useState({ name: '', descripcion: '' });
+
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [tablePreferences, setTablePreferences] = useState({
     pageSize: 20,
@@ -113,7 +118,6 @@ export default function RolesTable() {
   const isMounted = useRef(true);
   const hasFetched = useRef(false);
 
-  // --- DEFINICIÓN DE COLUMNAS CON INLINE EDIT ---
   const COLUMN_DEFINITIONS = [
     {
       id: 'rol_id',
@@ -126,14 +130,13 @@ export default function RolesTable() {
     {
       id: 'name',
       header: 'Nombre del Rol',
-      // Renderizado limpio, en negritas y capitalizado, sin colores.
       cell: (item: RoleItem) => (
         <strong style={{ textTransform: 'capitalize' }}>{item.name}</strong>
       ),
       sortingField: 'name',
       minWidth: 160,
       editConfig: {
-        ariaLabel: 'Editar nombre del rol',
+        ariaLabel: 'Editar nombre',
         editIconAriaLabel: 'editable',
         errorIconAriaLabel: 'Error de validación',
         editingCell: (item: RoleItem, { currentValue, setValue }: any) => (
@@ -145,8 +148,7 @@ export default function RolesTable() {
           />
         ),
         validation: (_item: RoleItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'El nombre del rol es requerido.';
+          if (!value || value.trim() === '') return 'Requerido.';
           return undefined;
         },
       },
@@ -170,9 +172,8 @@ export default function RolesTable() {
           />
         ),
         validation: (_item: RoleItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'La descripción es requerida.';
-          if (value.length < 5) return 'La descripción es demasiado corta.';
+          if (!value || value.trim() === '') return 'Requerida.';
+          if (value.length < 5) return 'Demasiado corta.';
           return undefined;
         },
       },
@@ -187,73 +188,29 @@ export default function RolesTable() {
     };
   }, [setPageLoading]);
 
-  // --- OBTENER DATOS DE LA API REAL (A PRUEBA DE FALLOS) ---
+  // --- 1. GET: OBTENER ROLES ---
   const fetchRoles = useCallback(
     async (isRefresh = false) => {
-      const alertId = addAlert
-        ? addAlert(
-            'info',
-            isRefresh
-              ? 'Actualizando roles...'
-              : 'Obteniendo catálogo de roles de la base de datos...',
-            'Sincronizando',
-            undefined,
-            true,
-          )
-        : undefined;
-
       try {
         if (isMounted.current) {
           if (isRefresh) setRefreshing(true);
           else setLoading(true);
         }
-
+        // 🔒 Enviamos cookies para la validación RBAC
         const response = await axios.get(`${backendUrl}/api/roles`, {
           withCredentials: true,
         });
-
         const resData = response.data;
-
-        if (Array.isArray(resData) || resData.success) {
-          if (isMounted.current) {
-            const validData = Array.isArray(resData)
-              ? resData
-              : resData.roles || [];
-            setRolesData(validData);
-          }
-          await new Promise((resolve) => setTimeout(resolve, 600));
-
-          if (addAlert) {
-            addAlert(
-              'success',
-              'Catálogo de roles cargado correctamente.',
-              'Éxito',
-              alertId,
-              false,
-            );
-          }
-        } else {
-          if (addAlert) {
-            addAlert(
-              'warning',
-              'No se encontraron roles o hubo un problema al leer la base de datos.',
-              'Advertencia',
-              alertId,
-              false,
-            );
-          }
+        if (resData.success) {
+          if (isMounted.current) setRolesData(resData.roles || []);
         }
       } catch (error: any) {
-        console.error('Error cargando roles:', error);
-        if (addAlert) {
+        if (addAlert)
           addAlert(
             'error',
-            error.message || 'Error al conectar con el servidor',
-            'Fallo de Red',
-            alertId,
-            false,
+            'Error al verificar roles. ¿Tienes permisos de admin?',
+            'Acceso Denegado',
           );
-        }
       } finally {
         if (isMounted.current) {
           setLoading(false);
@@ -271,48 +228,91 @@ export default function RolesTable() {
     }
   }, [fetchRoles]);
 
-  // --- LÓGICA DE GUARDADO INLINE HACIA LA API ---
+  // --- 2. PUT: EDICIÓN INLINE ---
   const handleInlineEditSave = async (
     item: RoleItem,
     column: any,
     newValue: string,
   ) => {
     try {
-      await axios.put(
+      const payload = { [column.id]: newValue };
+      const res = await axios.put(
         `${backendUrl}/api/roles/${item.rol_id}`,
-        { [column.id]: newValue },
+        payload,
         { withCredentials: true },
       );
 
-      setRolesData((prevData) =>
-        prevData.map((role) =>
-          role.rol_id === item.rol_id
-            ? { ...role, [column.id]: newValue }
-            : role,
-        ),
-      );
-
-      if (addAlert) {
-        addAlert(
-          'success',
-          `El campo ${column.header} se actualizó correctamente.`,
-          'Guardado exitoso',
-          undefined,
-          false,
+      if (res.data.success || res.status === 200) {
+        setRolesData((prevData) =>
+          prevData.map((role) =>
+            role.rol_id === item.rol_id
+              ? { ...role, [column.id]: newValue }
+              : role,
+          ),
         );
+        if (addAlert) addAlert('success', `Rol actualizado correctamente.`);
       }
     } catch (error: any) {
-      console.error('Error actualizando rol:', error);
-      if (addAlert) {
+      if (addAlert)
         addAlert(
           'error',
-          'Ocurrió un error al intentar guardar los cambios. Intenta de nuevo.',
-          'Error de guardado',
-          undefined,
-          false,
+          error.response?.data?.message || 'Error al guardar los cambios.',
         );
-      }
       throw error;
+    }
+  };
+
+  // --- 3. POST: CREAR ROL ---
+  const handleCreateRole = async () => {
+    if (!newRole.name) {
+      if (addAlert) addAlert('error', 'El nombre del rol es obligatorio.');
+      return;
+    }
+    try {
+      setIsCreating(true);
+      const res = await axios.post(`${backendUrl}/api/roles`, newRole, {
+        withCredentials: true,
+      });
+      if (res.data.success || res.status === 201) {
+        if (addAlert) addAlert('success', 'Rol creado exitosamente.');
+        setIsCreateModalVisible(false);
+        setNewRole({ name: '', descripcion: '' });
+        fetchRoles(); // Sincroniza tabla
+      }
+    } catch (error: any) {
+      if (addAlert)
+        addAlert(
+          'error',
+          error.response?.data?.message || 'Error al crear el rol.',
+        );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // --- 4. DELETE: ELIMINAR ROL ---
+  const handleDeleteRole = async () => {
+    if (selectedItems.length === 0) return;
+    try {
+      setIsDeleting(true);
+      const roleId = selectedItems[0].rol_id;
+      await axios.delete(`${backendUrl}/api/roles/${roleId}`, {
+        withCredentials: true,
+      });
+
+      if (addAlert) addAlert('success', 'Rol eliminado exitosamente.');
+      setSelectedItems([]);
+      setIsDeleteModalVisible(false);
+      fetchRoles();
+    } catch (error: any) {
+      if (addAlert)
+        addAlert(
+          'error',
+          error.response?.data?.message ||
+            'Error al eliminar el rol. ¿Está en uso?',
+        );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -331,14 +331,21 @@ export default function RolesTable() {
       empty: (
         <EmptyState
           title="No hay roles del sistema"
-          subtitle="No existen roles o niveles de acceso registrados para mostrar."
-          action={<Button variant="primary">Crear rol</Button>}
+          subtitle="No existen roles o niveles de acceso registrados."
+          action={
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateModalVisible(true)}
+            >
+              Crear rol
+            </Button>
+          }
         />
       ),
       noMatch: (
         <EmptyState
           title="No hay coincidencias"
-          subtitle="No se encontraron roles que coincidan con la búsqueda."
+          subtitle="No se encontraron roles."
           action={
             <Button onClick={() => actions.setFiltering('')}>
               Borrar filtro
@@ -419,10 +426,18 @@ export default function RolesTable() {
                       onClick={() => fetchRoles(true)}
                       ariaLabel="Refrescar"
                     />
-                    <Button disabled={selectedItems.length === 0}>
+                    <Button
+                      disabled={selectedItems.length === 0}
+                      onClick={() => setIsDeleteModalVisible(true)}
+                    >
                       Eliminar
                     </Button>
-                    <Button variant="primary">Nuevo rol</Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => setIsCreateModalVisible(true)}
+                    >
+                      Nuevo rol
+                    </Button>
                   </SpaceBetween>
                 }
               >
@@ -444,10 +459,10 @@ export default function RolesTable() {
                   ],
                 }}
                 visibleContentPreference={{
-                  title: 'Seleccionar columnas visibles',
+                  title: 'Columnas visibles',
                   options: [
                     {
-                      label: 'Propiedades principales',
+                      label: 'Propiedades',
                       options: COLUMN_DEFINITIONS.map((col) => ({
                         id: col.id,
                         label: col.header as string,
@@ -460,7 +475,7 @@ export default function RolesTable() {
             filter={
               <TextFilter
                 {...filterProps}
-                filteringPlaceholder="Buscar rol (ej. admin)..."
+                filteringPlaceholder="Buscar rol..."
                 countText={`${filteredItemsCount} coincidencias`}
               />
             }
@@ -469,6 +484,92 @@ export default function RolesTable() {
         }
       />
       <Footer />
+
+      {/* --- MODAL CREAR ROL --- */}
+      <Modal
+        onDismiss={() => setIsCreateModalVisible(false)}
+        visible={isCreateModalVisible}
+        closeAriaLabel="Cerrar"
+        header="Crear nuevo Rol"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsCreateModalVisible(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={isCreating}
+                onClick={handleCreateRole}
+              >
+                Guardar Rol
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween direction="vertical" size="m">
+          <FormField
+            label="Nombre del Rol"
+            description="Se recomienda usar un nombre corto, ej. 'admin' o 'usuario'."
+          >
+            <Input
+              value={newRole.name}
+              onChange={({ detail }) =>
+                setNewRole({ ...newRole, name: detail.value })
+              }
+              placeholder="Ej. auditor"
+            />
+          </FormField>
+          <FormField
+            label="Descripción"
+            description="Explica el nivel de acceso que otorga este rol."
+          >
+            <Input
+              value={newRole.descripcion}
+              onChange={({ detail }) =>
+                setNewRole({ ...newRole, descripcion: detail.value })
+              }
+              placeholder="Permiso de solo lectura..."
+            />
+          </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* --- MODAL ELIMINAR ROL --- */}
+      <Modal
+        onDismiss={() => setIsDeleteModalVisible(false)}
+        visible={isDeleteModalVisible}
+        closeAriaLabel="Cerrar"
+        header="Eliminar Rol"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsDeleteModalVisible(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={isDeleting}
+                onClick={handleDeleteRole}
+              >
+                Sí, Eliminar
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p">
+          ¿Estás seguro de que deseas eliminar el rol{' '}
+          <b>{selectedItems[0]?.name}</b>? Esta acción no se puede deshacer.
+        </Box>
+      </Modal>
     </div>
   );
 }

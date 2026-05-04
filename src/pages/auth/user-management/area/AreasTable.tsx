@@ -14,6 +14,8 @@ import {
   Flashbar,
   CollectionPreferences,
   Input,
+  Modal,
+  FormField,
 } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 
@@ -26,7 +28,7 @@ import GlobalSidebar from '@/components/layouts/AppSidebar';
 import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
-// 👇 AQUÍ IMPORTAS TU IMAGEN LOCAL (Ajusta la ruta y el nombre del archivo) 👇
+// Imagen estado vacío
 import emptyStateImage from '@/assets/table-items/robot-empty.svg';
 
 // --- ESTILOS CSS ---
@@ -66,13 +68,6 @@ const awsStyles = `
     padding: 0;
     background: transparent;
   }
-  .color-picker-input::-webkit-color-swatch-wrapper {
-    padding: 0;
-  }
-  .color-picker-input::-webkit-color-swatch {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  }
 `;
 
 // --- INTERFACES ---
@@ -85,7 +80,7 @@ export interface AreaItem {
   updatedAt?: string;
 }
 
-// --- NUEVO COMPONENTE: EMPTY STATE ---
+// --- COMPONENTE: EMPTY STATE ---
 const EmptyState = ({
   title,
   subtitle,
@@ -105,10 +100,10 @@ const EmptyState = ({
       </Box>
       <Box padding={{ bottom: 'l' }}>
         <img
-          src={emptyStateImage} // Usamos la variable importada arriba
+          src={emptyStateImage}
           alt="Estado vacío"
           style={{
-            maxWidth: '250px', // Tamaño adaptado a la captura
+            maxWidth: '250px',
             width: '100%',
             display: 'block',
             margin: '0 auto',
@@ -121,16 +116,31 @@ const EmptyState = ({
 };
 
 export default function AreasTable() {
-  // 🚩 CORRECCIÓN: Usamos la variable de entorno de Vite para la URL del backend
   const { alerts, addAlert, setPageLoading } = useContext(AppContent) || {};
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+  // Estados de Interfaz
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [areasData, setAreasData] = useState<AreaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estados de Datos
+  const [areasData, setAreasData] = useState<AreaItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<AreaItem[]>([]);
+
+  // Estados para Modal de Creación
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newArea, setNewArea] = useState({
+    level: '',
+    descripcion: '',
+    color: '#fcfcfc',
+  });
+
+  // Estados para Modal de Eliminación
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [tablePreferences, setTablePreferences] = useState({
     pageSize: 20,
@@ -140,7 +150,7 @@ export default function AreasTable() {
   const isMounted = useRef(true);
   const hasFetched = useRef(false);
 
-  // --- DEFINICIÓN DE COLUMNAS CON INLINE EDIT ---
+  // --- COLUMNAS CON INLINE EDIT ---
   const COLUMN_DEFINITIONS = [
     {
       id: 'area_id',
@@ -167,12 +177,11 @@ export default function AreasTable() {
             autoFocus
             value={currentValue ?? item.level}
             onChange={(e) => setValue(e.detail.value)}
-            placeholder="Ej. almacén"
+            placeholder="Ej. Almacén"
           />
         ),
         validation: (_item: AreaItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'El nombre del área es requerido.';
+          if (!value || value.trim() === '') return 'El nombre es requerido.';
           return undefined;
         },
       },
@@ -212,7 +221,6 @@ export default function AreasTable() {
                 className="color-picker-input"
                 value={hexColor}
                 onChange={(e) => setValue(e.target.value)}
-                autoFocus
               />
               <Input
                 value={hexColor}
@@ -225,7 +233,7 @@ export default function AreasTable() {
         validation: (_item: AreaItem, value: string) => {
           const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
           if (!value || !hexRegex.test(value))
-            return 'Ingresa un código HEX válido (ej. #FF0000).';
+            return 'HEX inválido (ej. #FF0000).';
           return undefined;
         },
       },
@@ -249,10 +257,8 @@ export default function AreasTable() {
           />
         ),
         validation: (_item: AreaItem, value: string) => {
-          if (!value || value.trim() === '')
-            return 'La descripción es requerida.';
-          if (value.length < 10)
-            return 'La descripción debe ser más detallada.';
+          if (!value || value.trim() === '') return 'Requerida.';
+          if (value.length < 5) return 'Debe ser más detallada.';
           return undefined;
         },
       },
@@ -267,72 +273,35 @@ export default function AreasTable() {
     };
   }, [setPageLoading]);
 
-  // --- OBTENER DATOS DE LA API REAL ---
+  // --- 1. OBTENER DATOS (GET) ---
   const fetchAreas = useCallback(
     async (isRefresh = false) => {
-      const alertId = addAlert
-        ? addAlert(
-            'info',
-            isRefresh
-              ? 'Actualizando áreas...'
-              : 'Obteniendo áreas desde la base de datos...',
-            'Sincronizando',
-            undefined,
-            true,
-          )
-        : undefined;
-
       try {
         if (isMounted.current) {
           if (isRefresh) setRefreshing(true);
           else setLoading(true);
         }
-
-        const response = await axios.get(
-          `${backendUrl}/api/levelArea`,
-          // ``
-          {
-            withCredentials: true,
-          },
-        );
-
+        const response = await axios.get(`${backendUrl}/api/levelArea`, {
+          withCredentials: true,
+        });
         if (response.data.success) {
-          if (isMounted.current) {
-            setAreasData(response.data.areas);
-          }
-          await new Promise((resolve) => setTimeout(resolve, 600));
-
-          if (addAlert) {
-            addAlert(
-              'success',
-              'Catálogo de áreas cargado correctamente.',
-              'Éxito',
-              alertId,
-              false,
-            );
-          }
-        } else {
-          if (addAlert) {
-            addAlert(
-              'warning',
-              'No se encontraron áreas o hubo un problema al leer la base de datos.',
-              'Advertencia',
-              alertId,
-              false,
-            );
-          }
+          if (isMounted.current) setAreasData(response.data.areas);
         }
       } catch (error: any) {
-        console.error('Error cargando áreas:', error);
-        if (addAlert) {
-          addAlert(
-            'error',
-            error.message || 'Error al conectar con el servidor',
-            'Fallo de Red',
-            alertId,
-            false,
-          );
+        // 🛡️ CAPTURA DE ERROR DE PERMISOS (403)
+        if (error.response?.status === 403) {
+          if (addAlert)
+            addAlert(
+              'error',
+              error.response.data.message ||
+                'No tienes permisos para ver las áreas.',
+              'Acceso Denegado',
+            );
+        } else {
+          if (addAlert)
+            addAlert('error', 'Error al obtener las áreas.', 'Fallo de Red');
         }
+        if (isMounted.current) setAreasData([]); // Muestra el Empty State
       } finally {
         if (isMounted.current) {
           setLoading(false);
@@ -350,49 +319,110 @@ export default function AreasTable() {
     }
   }, [fetchAreas]);
 
-  // --- LÓGICA DE GUARDADO INLINE HACIA LA API ---
+  // --- 2. ACTUALIZAR DATO INLINE (PUT) ---
   const handleInlineEditSave = async (
     item: AreaItem,
     column: any,
     newValue: string,
   ) => {
     try {
-      await axios.put(
+      const payload = { [column.id]: newValue };
+      const res = await axios.put(
         `${backendUrl}/api/levelArea/${item.area_id}`,
-        // ''
-        { [column.id]: newValue },
+        payload,
         { withCredentials: true },
       );
 
-      setAreasData((prevData) =>
-        prevData.map((area) =>
-          area.area_id === item.area_id
-            ? { ...area, [column.id]: newValue }
-            : area,
-        ),
-      );
-
-      if (addAlert) {
-        addAlert(
-          'success',
-          `El campo ${column.header} se actualizó correctamente en la base de datos.`,
-          'Guardado exitoso',
-          undefined,
-          false,
+      if (res.data.success) {
+        setAreasData((prevData) =>
+          prevData.map((area) =>
+            area.area_id === item.area_id
+              ? { ...area, [column.id]: newValue }
+              : area,
+          ),
         );
+        if (addAlert) addAlert('success', `Área actualizada correctamente.`);
       }
     } catch (error: any) {
-      console.error('Error actualizando área:', error);
-      if (addAlert) {
-        addAlert(
-          'error',
-          'Ocurrió un error al intentar guardar los cambios. Intenta de nuevo.',
-          'Error de guardado',
-          undefined,
-          false,
-        );
+      // 🛡️ CAPTURA DE ERROR DE PERMISOS Y VALIDACIONES
+      if (error.response?.status === 403) {
+        if (addAlert)
+          addAlert('error', error.response.data.message, 'Acceso Denegado');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message || 'Error al guardar los cambios.',
+          );
       }
-      throw error;
+      throw error; // Requerido para abortar el cambio visual en la tabla
+    }
+  };
+
+  // --- 3. CREAR NUEVA ÁREA (POST) ---
+  const handleCreateArea = async () => {
+    if (!newArea.level) {
+      if (addAlert) addAlert('error', 'El nombre del área es obligatorio.');
+      return;
+    }
+    try {
+      setIsCreating(true);
+      const res = await axios.post(`${backendUrl}/api/levelArea`, newArea, {
+        withCredentials: true,
+      });
+      if (res.data.success) {
+        if (addAlert) addAlert('success', 'Área creada exitosamente.');
+        setIsCreateModalVisible(false);
+        setNewArea({ level: '', descripcion: '', color: '#fcfcfc' });
+        fetchAreas(); // Refrescar la tabla
+      }
+    } catch (error: any) {
+      // 🛡️ CAPTURA DE ERROR DE PERMISOS Y VALIDACIONES
+      if (error.response?.status === 403) {
+        if (addAlert)
+          addAlert('error', error.response.data.message, 'Acceso Denegado');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message || 'Error al crear el área.',
+          );
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // --- 4. ELIMINAR ÁREA (DELETE) ---
+  const handleDeleteArea = async () => {
+    if (selectedItems.length === 0) return;
+    try {
+      setIsDeleting(true);
+      const areaId = selectedItems[0].area_id;
+
+      await axios.delete(`${backendUrl}/api/levelArea/${areaId}`, {
+        withCredentials: true,
+      });
+
+      if (addAlert) addAlert('success', 'Área eliminada exitosamente.');
+      setSelectedItems([]);
+      setIsDeleteModalVisible(false);
+      fetchAreas();
+    } catch (error: any) {
+      // 🛡️ CAPTURA DE ERROR DE PERMISOS Y VALIDACIONES
+      if (error.response?.status === 403) {
+        if (addAlert)
+          addAlert('error', error.response.data.message, 'Acceso Denegado');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message ||
+              'Error al eliminar el área. Asegúrese de que no esté en uso.',
+          );
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -411,8 +441,15 @@ export default function AreasTable() {
       empty: (
         <EmptyState
           title="No hay áreas operativas"
-          subtitle="No existen áreas registradas en el sistema para mostrar."
-          action={<Button variant="primary">Crear área</Button>}
+          subtitle="No existen áreas registradas o no tienes permisos para verlas."
+          action={
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateModalVisible(true)}
+            >
+              Crear área
+            </Button>
+          }
         />
       ),
       noMatch: (
@@ -480,10 +517,9 @@ export default function AreasTable() {
             stickyHeader={true}
             stickyHeaderVerticalOffset={90}
             loading={loading}
-            loadingText="Cargando áreas operativas..."
+            loadingText="Verificando permisos y cargando áreas..."
             trackBy="area_id"
             submitEdit={handleInlineEditSave as any}
-            // Mantenemos un padding generoso para que el empty state se vea centrado y limpio
             empty={
               <div style={{ padding: '40px 0' }}>{collectionProps.empty}</div>
             }
@@ -500,10 +536,18 @@ export default function AreasTable() {
                       onClick={() => fetchAreas(true)}
                       ariaLabel="Refrescar"
                     />
-                    <Button disabled={selectedItems.length === 0}>
+                    <Button
+                      disabled={selectedItems.length === 0}
+                      onClick={() => setIsDeleteModalVisible(true)}
+                    >
                       Eliminar
                     </Button>
-                    <Button variant="primary">Nueva área</Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => setIsCreateModalVisible(true)}
+                    >
+                      Nueva área
+                    </Button>
                   </SpaceBetween>
                 }
               >
@@ -520,15 +564,15 @@ export default function AreasTable() {
                 pageSizePreference={{
                   title: 'Tamaño de página',
                   options: [
-                    { value: 20, label: '20 recursos' },
-                    { value: 50, label: '50 recursos' },
+                    { value: 20, label: '20 áreas' },
+                    { value: 50, label: '50 áreas' },
                   ],
                 }}
                 visibleContentPreference={{
-                  title: 'Seleccionar columnas visibles',
+                  title: 'Columnas visibles',
                   options: [
                     {
-                      label: 'Propiedades principales',
+                      label: 'Propiedades',
                       options: COLUMN_DEFINITIONS.map((col) => ({
                         id: col.id,
                         label: col.header as string,
@@ -550,6 +594,115 @@ export default function AreasTable() {
         }
       />
       <Footer />
+
+      {/* --- MODAL DE CREACIÓN --- */}
+      <Modal
+        onDismiss={() => setIsCreateModalVisible(false)}
+        visible={isCreateModalVisible}
+        closeAriaLabel="Cerrar"
+        header="Crear nueva área operativa"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsCreateModalVisible(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={isCreating}
+                onClick={handleCreateArea}
+              >
+                Crear Área
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween direction="vertical" size="m">
+          <FormField
+            label="Nombre del área"
+            description="El nombre oficial del departamento."
+          >
+            <Input
+              value={newArea.level}
+              onChange={({ detail }) =>
+                setNewArea({ ...newArea, level: detail.value })
+              }
+              placeholder="Ej. Producción"
+            />
+          </FormField>
+          <FormField
+            label="Descripción"
+            description="Responsabilidades de esta área."
+          >
+            <Input
+              value={newArea.descripcion}
+              onChange={({ detail }) =>
+                setNewArea({ ...newArea, descripcion: detail.value })
+              }
+              placeholder="Encargados de..."
+            />
+          </FormField>
+          <FormField
+            label="Color identificativo"
+            description="Selecciona un color en formato HEX."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="color"
+                className="color-picker-input"
+                value={newArea.color}
+                onChange={(e) =>
+                  setNewArea({ ...newArea, color: e.target.value })
+                }
+              />
+              <Input
+                value={newArea.color}
+                onChange={({ detail }) =>
+                  setNewArea({ ...newArea, color: detail.value })
+                }
+                placeholder="#fcfcfc"
+              />
+            </div>
+          </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* --- MODAL DE ELIMINACIÓN --- */}
+      <Modal
+        onDismiss={() => setIsDeleteModalVisible(false)}
+        visible={isDeleteModalVisible}
+        closeAriaLabel="Cerrar"
+        header="Eliminar área"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsDeleteModalVisible(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={isDeleting}
+                onClick={handleDeleteArea}
+              >
+                Sí, Eliminar
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p">
+          ¿Estás seguro de que deseas eliminar el área{' '}
+          <b>{selectedItems[0]?.level}</b>? Esta acción no se puede deshacer y
+          puede afectar a los usuarios asignados a ella.
+        </Box>
+      </Modal>
     </div>
   );
 }

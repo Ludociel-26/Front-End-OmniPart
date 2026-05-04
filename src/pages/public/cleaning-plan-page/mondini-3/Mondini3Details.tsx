@@ -1,10 +1,11 @@
 import * as React from 'react';
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AppContent } from '@/context/AppContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import {
   TopNavigation,
-  Header,
   SpaceBetween,
   Cards,
   Icon,
@@ -14,17 +15,28 @@ import {
   Container,
   Grid,
   Box,
+  ColumnLayout,
+  Header,
 } from '@cloudscape-design/components';
 
 // ==========================================
-// IMPORTA TU FOOTER AQUÍ
+// IMPORTA TU FOOTER Y LOGO
 // ==========================================
 import { Footer } from '@/components/layouts/AppFooter';
+import logoSistema from '@/assets/icons/logo.svg';
 
 // ==========================================
 // DATA IMPORTADA
 // ==========================================
-import { m3Sec1Data, m3Sec2Data, SECTIONS } from './mondini3Data';
+import { m3Sec1Data, m3Sec2Data, m3Sec3Data } from './mondini3Data';
+
+const SECTIONS = [
+  { id: 'intro', text: 'Documento Normativo' },
+  { id: 'tabla', text: 'Inventario Completo' },
+  { id: 'sec1', text: 'Sección 1 (Entrada)' },
+  { id: 'sec2', text: 'Sección 2 (Jarabe)' },
+  { id: 'sec3', text: 'Sección 3 (Sellado)' },
+];
 
 // ==========================================
 // COMPONENTES UI PERSONALIZADOS
@@ -40,7 +52,11 @@ const SectionTitle = ({
 }) => (
   <div
     className="section-title-container"
-    style={{ borderBottom: `2px solid ${isDark ? '#414d5c' : '#eaeded'}` }}
+    style={{
+      borderBottom: `2px solid ${isDark ? '#414d5c' : '#eaeded'}`,
+      marginBottom: '24px',
+      paddingBottom: '16px',
+    }}
   >
     <h2
       className="section-title"
@@ -48,6 +64,8 @@ const SectionTitle = ({
         fontWeight: '900',
         color: isDark ? '#ffffff' : '#16191f',
         letterSpacing: '-0.5px',
+        fontSize: '24px',
+        margin: 0,
       }}
     >
       {title}
@@ -55,7 +73,11 @@ const SectionTitle = ({
     {subtitle && (
       <p
         className="section-subtitle"
-        style={{ color: isDark ? '#aab7b8' : '#545b64' }}
+        style={{
+          color: isDark ? '#aab7b8' : '#545b64',
+          marginTop: '8px',
+          fontSize: '14px',
+        }}
       >
         {subtitle}
       </p>
@@ -63,28 +85,16 @@ const SectionTitle = ({
   </div>
 );
 
-const CardCarousel = ({
-  images,
+const CardImageViewer = ({
+  image,
   isDark,
   onExpand,
 }: {
-  images: { src: string | null; label: string }[];
+  image: { src: string | null; label: string };
   isDark: boolean;
   onExpand: (imgSrc: string) => void;
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (!images || images.length === 0) return;
-    const interval = setInterval(
-      () => setCurrentIndex((prev) => (prev + 1) % images.length),
-      Math.floor(Math.random() * 4000) + 8000,
-    );
-    return () => clearInterval(interval);
-  }, [images]);
-
-  if (!images || images.length === 0) return null;
-  const currentImage = images[currentIndex];
+  if (!image) return null;
 
   return (
     <div
@@ -101,13 +111,17 @@ const CardCarousel = ({
         borderRadius: '8px 8px 0 0',
       }}
     >
-      {currentImage.src ? (
+      {image.src ? (
         <img
-          key={`img-${currentIndex}`}
-          src={currentImage.src}
+          src={image.src}
           className="slow-transition-fade"
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          alt={currentImage.label}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            padding: '8px',
+          }}
+          alt={image.label}
         />
       ) : (
         <SpaceBetween size="xs" direction="vertical" alignItems="center">
@@ -119,22 +133,38 @@ const CardCarousel = ({
           <span
             style={{ fontSize: '13px', color: isDark ? '#687078' : '#879596' }}
           >
-            Añadir Foto ({currentImage.label})
+            Añadir Foto
           </span>
         </SpaceBetween>
       )}
 
-      {currentImage.src && (
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          color: '#fff',
+          padding: '6px 14px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+        }}
+      >
+        {image.label}
+      </div>
+
+      {image.src && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onExpand(currentImage.src!);
+            onExpand(image.src!);
           }}
           title="Ver imagen completa"
           style={{
             position: 'absolute',
             bottom: '16px',
-            left: '16px',
+            right: '16px',
             backgroundColor: 'rgba(0,0,0,0.65)',
             color: '#fff',
             border: '1px solid rgba(255,255,255,0.4)',
@@ -152,170 +182,9 @@ const CardCarousel = ({
           />
         </button>
       )}
-
-      <div
-        style={{
-          position: 'absolute',
-          top: '16px',
-          left: '16px',
-          backgroundColor: 'rgba(0,0,0,0.75)',
-          color: '#fff',
-          padding: '6px 14px',
-          borderRadius: '6px',
-          fontSize: '12px',
-          fontWeight: 'bold',
-        }}
-      >
-        {currentImage.label}
-      </div>
-
-      {images.length > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '16px',
-            right: '16px',
-            display: 'flex',
-            gap: '6px',
-            backgroundColor: isDark
-              ? 'rgba(22, 25, 31, 0.85)'
-              : 'rgba(255, 255, 255, 0.95)',
-            padding: '6px 10px',
-            borderRadius: '20px',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCurrentIndex(
-                (prev) => (prev - 1 + images.length) % images.length,
-              );
-            }}
-            className="nav-btn-clear"
-            style={{ color: isDark ? '#fff' : '#16191f' }}
-          >
-            <Icon
-              name={'angle-left' as any}
-              size="small"
-              variant={'normal' as any}
-            />
-          </button>
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: '800',
-              color: isDark ? '#fff' : '#16191f',
-              padding: '0 4px',
-            }}
-          >
-            {currentIndex + 1}/{images.length}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCurrentIndex((prev) => (prev + 1) % images.length);
-            }}
-            className="nav-btn-clear"
-            style={{ color: isDark ? '#fff' : '#16191f' }}
-          >
-            <Icon
-              name={'angle-right' as any}
-              size="small"
-              variant={'normal' as any}
-            />
-          </button>
-        </div>
-      )}
     </div>
   );
 };
-
-// ==========================================
-// MOTOR PDF
-// ==========================================
-const PrintTemplate = React.forwardRef<
-  HTMLDivElement,
-  { dataSec1: any[]; dataSec2: any[] }
->(({ dataSec1, dataSec2 }, ref) => (
-  <div
-    ref={ref}
-    style={{
-      padding: '40px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#000',
-      backgroundColor: '#fff',
-      width: '100%',
-      maxWidth: '1200px',
-    }}
-  >
-    <h1
-      style={{
-        fontSize: '32px',
-        borderBottom: '2px solid #000',
-        paddingBottom: '10px',
-      }}
-    >
-      Inventario de Protección: Mondini 3
-    </h1>
-    <h2 style={{ fontSize: '24px', marginTop: '30px' }}>
-      Sección 1: Entrada y Dosificación
-    </h2>
-    <table
-      style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        marginBottom: '40px',
-      }}
-    >
-      <thead>
-        <tr
-          style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #ccc' }}
-        >
-          <th style={{ padding: '10px', textAlign: 'left' }}>
-            Componente Técnico
-          </th>
-          <th style={{ padding: '10px', textAlign: 'left' }}>Nombre Físico</th>
-          <th style={{ padding: '10px', textAlign: 'left' }}>Instrucción</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dataSec1.map((item, idx) => (
-          <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-            <td style={{ padding: '10px', fontWeight: 'bold' }}>{item.tech}</td>
-            <td style={{ padding: '10px', color: '#555' }}>{item.raw}</td>
-            <td style={{ padding: '10px' }}>{item.desc}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <h2 style={{ fontSize: '24px', marginTop: '30px' }}>
-      Sección 2: Sellado, Vacío y Salida
-    </h2>
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-      <thead>
-        <tr
-          style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #ccc' }}
-        >
-          <th style={{ padding: '10px', textAlign: 'left' }}>
-            Componente Técnico
-          </th>
-          <th style={{ padding: '10px', textAlign: 'left' }}>Nombre Físico</th>
-          <th style={{ padding: '10px', textAlign: 'left' }}>Instrucción</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dataSec2.map((item, idx) => (
-          <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-            <td style={{ padding: '10px', fontWeight: 'bold' }}>{item.tech}</td>
-            <td style={{ padding: '10px', color: '#555' }}>{item.raw}</td>
-            <td style={{ padding: '10px' }}>{item.desc}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-));
 
 // ==========================================
 // COMPONENTE PRINCIPAL
@@ -328,22 +197,73 @@ export default function Mondini3Details() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   const [flashbarItems, setFlashbarItems] = useState<any[]>([
     {
-      type: 'warning',
+      type: 'error',
       dismissible: true,
-      onDismiss: () => setFlashbarItems([]),
+      onDismiss: () => handleDismiss('msg_loto'),
       content: (
         <Box fontSize="body-s">
-          <strong>Normativa LOTTO:</strong> Desconecte la energía eléctrica
+          <strong>Normativa LOTO:</strong> Desconecte la energía eléctrica
           general de la Mondini 3 antes de iniciar lavado.
         </Box>
       ),
       id: 'msg_loto',
     },
+    {
+      type: 'error',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_1'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>❌ PRECAUCIÓN:</strong> NO dirigir agua a presión sobre
+          componentes eléctricos o neumáticos.
+        </Box>
+      ),
+      id: 'msg_1',
+    },
+    {
+      type: 'error',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_2'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>❌ PRECAUCIÓN:</strong> NO aplicar químicos directamente sobre
+          sensores o sellos.
+        </Box>
+      ),
+      id: 'msg_2',
+    },
+    {
+      type: 'warning',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_3'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>❌ PRECAUCIÓN:</strong> NO remover protecciones durante
+          lavado.
+        </Box>
+      ),
+      id: 'msg_3',
+    },
+    {
+      type: 'warning',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_4'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>❌ PRECAUCIÓN:</strong> NO impactar sellos, chumaceras o
+          conexiones con alta presión.
+        </Box>
+      ),
+      id: 'msg_4',
+    },
   ]);
 
-  const printContainerRef = useRef<HTMLDivElement>(null);
+  const handleDismiss = (idToRemove: string) => {
+    setFlashbarItems((items) => items.filter((item) => item.id !== idToRemove));
+  };
 
   const colors = {
     bgPage: isDark ? '#0f1b2a' : '#ffffff',
@@ -382,40 +302,442 @@ export default function Mondini3Details() {
     }
   };
 
-  const handleExportPDF = async () => {
-    if (!printContainerRef.current) return;
-    setIsExporting(true);
-    try {
-      const script = document.createElement('script');
-      script.src =
-        'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-      document.body.appendChild(script);
-      script.onload = () => {
-        const opt = {
-          margin: 0.5,
-          filename: 'Mondini3_Inventario.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-        };
-        (window as any)
-          .html2pdf()
-          .set(opt)
-          .from(printContainerRef.current)
-          .save()
-          .then(() => {
-            setIsExporting(false);
-            document.body.removeChild(script);
+  // ==========================================
+  // GENERADOR PDF: ZOOM PROPORCIONAL & MÁRGENES DE IMPRESIÓN
+  // ==========================================
+  const getLogoData = async (
+    url: string,
+  ): Promise<{ data: string; width: number; height: number } | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width || 300;
+        canvas.height = img.height || 100;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve({
+            data: canvas.toDataURL('image/png'),
+            width: canvas.width,
+            height: canvas.height,
           });
+        } else {
+          resolve(null);
+        }
       };
-    } catch {
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+
+    try {
+      const doc = new jsPDF('p', 'pt', 'letter');
+      const margin = 40;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const contentWidth = pageWidth - margin * 2;
+      const colWidth = (contentWidth - 20) / 2;
+
+      // MARGEN INFERIOR SEGURO PARA IMPRESIÓN FÍSICA
+      const safeBottomMargin = 90;
+
+      const safeText = (
+        text: string,
+        x: number,
+        y: number,
+        align: 'left' | 'right' | 'center' = 'left',
+      ) => {
+        const validText = text ? String(text) : '';
+        if (align === 'right') {
+          const w = doc.getTextWidth(validText);
+          doc.text(validText, x - w, y);
+        } else if (align === 'center') {
+          const w = doc.getTextWidth(validText);
+          doc.text(validText, x - w / 2, y);
+        } else {
+          doc.text(validText, x, y);
+        }
+      };
+
+      const drawAWSFooter = (data: any) => {
+        const docObj = data.doc;
+        // Elevado para alejarlo del borde físico de la hoja
+        const startY = pageHeight - 60;
+        docObj.setLineWidth(1);
+        docObj.setDrawColor(0, 0, 0);
+        docObj.line(margin, startY, pageWidth - margin, startY);
+
+        docObj.setTextColor(0, 0, 0);
+        docObj.setFontSize(7.5);
+        docObj.setFont('helvetica', 'normal');
+        safeText(
+          'Este documento es una representación impresa para control de sanidad',
+          pageWidth / 2,
+          startY + 12,
+          'center',
+        );
+
+        docObj.setFont('helvetica', 'bold');
+        safeText(
+          'QUICKFIND SYSTEM - MONDINI 3',
+          pageWidth / 2,
+          startY + 22,
+          'center',
+        );
+
+        docObj.setFont('helvetica', 'normal');
+        safeText(
+          'Planta Congelados - Área de Mondinis',
+          pageWidth / 2,
+          startY + 32,
+          'center',
+        );
+      };
+
+      // ==========================================
+      // HOJA 1: PORTADA TIPO AWS (Zoom Out Proporcional)
+      // ==========================================
+      let currentY = 50;
+
+      const logoData = await getLogoData(logoSistema);
+      if (logoData) {
+        const maxLogoW = 100; // Reducido proporcionalmente
+        const maxLogoH = 30;
+        const ratio = logoData.width / logoData.height;
+        let w = maxLogoW;
+        let h = w / ratio;
+        if (h > maxLogoH) {
+          h = maxLogoH;
+          w = h * ratio;
+        }
+        doc.addImage(logoData.data, 'PNG', margin, currentY - 15, w, h);
+      } else {
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        safeText('QuickFind', margin, currentY + 5);
+      }
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(0, 0, 0);
+      safeText(
+        'Catálogo de Puntos Críticos Durante',
+        pageWidth - margin,
+        currentY - 5,
+        'right',
+      );
+      safeText(
+        'Lavado de Equipos (Mondini 3)',
+        pageWidth - margin,
+        currentY + 7,
+        'right',
+      );
+
+      currentY += 35;
+      doc.setLineWidth(1.5);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 25;
+
+      const col2X = margin + colWidth + 20;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('DATOS DEL EQUIPO', margin, currentY);
+      safeText('DATOS DE EMISIÓN', col2X, currentY);
+
+      currentY += 6;
+      doc.setLineWidth(1);
+      doc.line(margin, currentY, margin + colWidth, currentY);
+      doc.line(col2X, currentY, pageWidth - margin, currentY);
+
+      currentY += 15;
+      doc.setFontSize(7.5); // Escala proporcional menor
+
+      const drawRow = (
+        y: number,
+        k1: string,
+        v1: string,
+        k2: string,
+        v2: string,
+      ) => {
+        doc.setFont('helvetica', 'bold');
+        safeText(k1, margin, y);
+        safeText(k2, col2X, y);
+        doc.setFont('helvetica', 'normal');
+        safeText(v1, margin + colWidth, y, 'right');
+        safeText(v2, pageWidth - margin, y, 'right');
+      };
+
+      drawRow(
+        currentY,
+        'Planta',
+        'Congelados',
+        'Realizado por',
+        'Mantenimiento',
+      );
+      currentY += 14;
+      drawRow(currentY, 'Área', 'Mondinis', 'Dirigido a', 'Sanidad');
+      currentY += 14;
+      drawRow(
+        currentY,
+        'Equipo',
+        'Mondini #3',
+        'Fecha y hora de emisión',
+        new Date().toLocaleString(),
+      );
+
+      currentY += 10;
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 25;
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(1.2);
+      const boxHeight = 85; // Cajas más compactas para el efecto Zoom Out
+
+      doc.rect(margin, currentY, colWidth, boxHeight);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('Propósito', margin + 8, currentY + 16);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      const propText = doc.splitTextToSize(
+        'Establecer los puntos críticos de protección durante las actividades de lavado sanitario en los equipos de proceso, con el fin de prevenir daños en componentes mecánicos, neumáticos y eléctricos sensibles al agua o químicos de limpieza, asegurando la integridad del equipo y la continuidad operativa.',
+        colWidth - 16,
+      );
+      doc.text(propText, margin + 8, currentY + 30);
+
+      doc.rect(col2X, currentY, colWidth, boxHeight);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('Alcance', col2X + 8, currentY + 16);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      const alcText = doc.splitTextToSize(
+        'Este catálogo aplica al personal de Sanidad involucrado en actividades de limpieza de equipos en planta 2, incluyendo la identificación, protección y verificación de componentes críticos antes, durante y después del lavado. La instrucción aplica para todos los componentes.',
+        colWidth - 16,
+      );
+      doc.text(alcText, col2X + 8, currentY + 30);
+
+      currentY += boxHeight + 25;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('DETALLE DE PRECAUCIONES', margin, currentY);
+      currentY += 8;
+
+      doc.setLineWidth(1);
+      const preBoxH = 80;
+      doc.rect(margin, currentY, contentWidth, preBoxH);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+
+      const preText = doc.splitTextToSize(
+        '⚠️ NOTA DE SEGURIDAD\n\nEl lavado inadecuado de componentes críticos puede ocasionar fallas en el equipo y generar condiciones inseguras. Es obligatorio seguir las instrucciones de protección establecidas en este catálogo:\n\nX NO dirigir agua a presión sobre componentes eléctricos o neumáticos.\nX NO remover protecciones durante lavado.\nX NO aplicar químicos directamente sobre sensores o sellos.',
+        contentWidth - 16,
+      );
+      doc.text(preText, margin + 8, currentY + 16);
+
+      // ==========================================
+      // HOJA 2: LISTADO DE COMPONENTES TEXTO
+      // ==========================================
+      doc.addPage();
+      currentY = margin + 10;
+
+      const drawTextTable = (title: string, data: any[]) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        safeText(title, margin, currentY);
+
+        const tableOptions: any = {
+          startY: currentY + 6,
+          head: [['No', 'ID Físico / Componente Técnico', 'Instrucción']],
+          body: data.map((item, i) => [
+            String(i + 1),
+            String(item.name || ''),
+            String(item.desc || ''),
+          ]),
+          theme: 'grid',
+          headStyles: {
+            fillColor: 255,
+            textColor: 0,
+            fontStyle: 'bold',
+            lineWidth: 1,
+            lineColor: 0,
+          },
+          styles: {
+            fontSize: 7.5,
+            textColor: 0,
+            cellPadding: 5,
+            lineWidth: 1,
+            lineColor: 0,
+          }, // Fuentes reducidas
+          columnStyles: {
+            0: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+            1: { cellWidth: 160 },
+            2: { cellWidth: 'auto' },
+          },
+          margin: { left: margin, right: margin, bottom: safeBottomMargin },
+          rowPageBreak: 'avoid',
+        };
+
+        autoTable(doc, tableOptions);
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+      };
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      safeText('LISTADO DE COMPONENTES', margin, currentY);
+      currentY += 15;
+
+      drawTextTable('SECCIÓN 1: ENTRADA', m3Sec1Data);
+      drawTextTable('SECCIÓN 2: INYECCIÓN DE JARABE', m3Sec2Data);
+      drawTextTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m3Sec3Data);
+
+      // ==========================================
+      // HOJA 3+: EVIDENCIA VISUAL (Zoom Proporcional)
+      // ==========================================
+      doc.addPage();
+      currentY = margin + 10;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      safeText('EVIDENCIA VISUAL DE AISLAMIENTO', margin, currentY);
+      currentY += 15;
+
+      const drawVisualTable = (title: string, data: any[]) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        safeText(title, margin, currentY);
+
+        const visTableOptions: any = {
+          startY: currentY + 6,
+          head: [['ID Físico / Componente Técnico', 'Evidencia Física']],
+          body: data.map((item) => [String(item.name || ''), '']),
+          theme: 'grid',
+          headStyles: {
+            fillColor: 255,
+            textColor: 0,
+            fontStyle: 'bold',
+            lineWidth: 1,
+            lineColor: 0,
+          },
+
+          // Reducción del tamaño de la celda de la imagen para efecto "Zoom out" y que quepan más en la hoja
+          bodyStyles: { minCellHeight: 100 },
+          styles: {
+            fontSize: 7.5,
+            textColor: 0,
+            cellPadding: 6,
+            valign: 'middle',
+            lineColor: 0,
+            lineWidth: 1,
+          },
+          columnStyles: {
+            0: { cellWidth: 180, fontStyle: 'bold' },
+            1: { cellWidth: 'auto', halign: 'center' },
+          },
+          margin: { left: margin, right: margin, bottom: safeBottomMargin },
+          rowPageBreak: 'avoid',
+
+          didDrawCell: function (dataHook: any) {
+            if (dataHook.section === 'body' && dataHook.column.index === 1) {
+              const rowIndex = dataHook.row.index;
+              if (
+                dataHook.cell &&
+                data[rowIndex] &&
+                data[rowIndex].image &&
+                data[rowIndex].image.src
+              ) {
+                const imgData = data[rowIndex].image.src;
+                try {
+                  const imgProps = doc.getImageProperties(imgData);
+                  const imgRatio = imgProps.width / imgProps.height;
+
+                  // Respetamos un padding interno (8px en vez de 16px por estar más pequeña)
+                  const maxW = dataHook.cell.width - 8;
+                  const maxH = dataHook.cell.height - 8;
+                  const cellRatio = maxW / maxH;
+
+                  let finalW = maxW;
+                  let finalH = maxH;
+
+                  if (imgRatio > cellRatio) {
+                    finalH = maxW / imgRatio;
+                  } else {
+                    finalW = maxH * imgRatio;
+                  }
+
+                  const xOffset = dataHook.cell.x + 4 + (maxW - finalW) / 2;
+                  const yOffset = dataHook.cell.y + 4 + (maxH - finalH) / 2;
+
+                  doc.addImage(
+                    imgData,
+                    'JPEG',
+                    xOffset,
+                    yOffset,
+                    finalW,
+                    finalH,
+                    undefined,
+                    'FAST',
+                  );
+                } catch (e) {
+                  // Fallback
+                }
+              } else if (dataHook.cell) {
+                doc.setFontSize(7.5);
+                doc.setTextColor(150, 150, 150);
+                const txt = 'Fotografía no disponible';
+                const w = doc.getTextWidth(txt);
+                doc.text(
+                  txt,
+                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
+                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
+                );
+                doc.setTextColor(0, 0, 0);
+              }
+            }
+          },
+        };
+        autoTable(doc, visTableOptions);
+        return (doc as any).lastAutoTable.finalY + 15;
+      };
+
+      currentY = drawVisualTable('SECCIÓN 1: ENTRADA', m3Sec1Data);
+
+      doc.addPage();
+      currentY = margin + 10;
+      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', m3Sec2Data);
+
+      doc.addPage();
+      currentY = margin + 10;
+      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m3Sec3Data);
+
+      // Renderizar Footer en todas las páginas generadas
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        drawAWSFooter({ doc });
+      }
+
+      doc.save('Mondini3_Plan_Lavado.pdf');
+    } catch (error) {
+      console.error('Error crítico al generar PDF: ', error);
+    } finally {
       setIsExporting(false);
     }
   };
 
   const renderCards = (data: any[]) => (
     <Cards
-      // Ajuste drástico: Fuerza 1 tarjeta por fila en todo lo menor a 700px.
       cardsPerRow={[
         { cards: 1 },
         { minWidth: 700, cards: 2 },
@@ -425,17 +747,21 @@ export default function Mondini3Details() {
         header: (item) => (
           <div
             className="card-title"
-            style={{ fontSize: '17px', fontWeight: '900' }}
+            style={{
+              fontSize: '17px',
+              fontWeight: '900',
+              color: colors.activeLink,
+            }}
           >
-            {item.tech}
+            {item.name}
           </div>
         ),
         sections: [
           {
             id: 'img',
             content: (item) => (
-              <CardCarousel
-                images={item.images}
+              <CardImageViewer
+                image={item.image}
                 isDark={isDark}
                 onExpand={setSelectedImage}
               />
@@ -450,33 +776,11 @@ export default function Mondini3Details() {
                   fontSize: '14px',
                   display: 'block',
                   marginTop: '12px',
+                  fontWeight: '500',
                 }}
               >
                 {item.desc}
               </span>
-            ),
-          },
-          {
-            id: 'raw',
-            content: (item) => (
-              <div
-                style={{
-                  marginTop: '8px',
-                  paddingTop: '12px',
-                  borderTop: `1px solid ${colors.border}`,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '13px',
-                    color: '#879596',
-                    fontWeight: 'bold',
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  Físico: {item.raw}
-                </span>
-              </div>
             ),
           },
         ],
@@ -491,68 +795,34 @@ export default function Mondini3Details() {
         minHeight: '100vh',
         backgroundColor: colors.bgPage,
         color: colors.textMain,
-        overflowX: 'hidden' /* EVITAR OVERFLOW HORIZONTAL A NIVEL ROOT */,
         display: 'flex',
         flexDirection: 'column',
+        overflowX: 'clip',
+        width: '100%',
+        maxWidth: '100%',
       }}
     >
       <style>{`
-        @keyframes slowFadeIn { 0% { opacity: 0.3; filter: blur(4px); } 100% { opacity: 1; filter: blur(0); } }
-        .slow-transition-fade { animation: slowFadeIn 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-        .nav-btn-clear { background: transparent; border: none; cursor: pointer; display: flex; align-items: center; padding: 4px; border-radius: 4px; }
-        .nav-btn-clear:hover { background-color: rgba(0,0,0,0.1); }
+        *, *::before, *::after { box-sizing: border-box; }
+        @keyframes slowFadeIn { 0% { opacity: 0; filter: blur(4px); transform: scale(0.98); } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
+        .slow-transition-fade { animation: slowFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        /* LAYOUT FLEXBOX ESTRICTO PARA PREVENIR QUE SE EXPANDAN LOS HIJOS (TABLAS) */
-        .flex-container { 
-          display: flex; flex-direction: row; max-width: 1400px; margin: 0 auto; 
-          padding: 60px 40px; gap: 60px; align-items: flex-start; flex-grow: 1; 
-          width: 100%; box-sizing: border-box; 
-        }
-        .flex-content { 
-          flex: 1 1 0%; /* El 0% es magia para evitar el desborde flex */
-          min-width: 0; /* Crucial para responsividad */
-          width: 100%; 
-          max-width: 100vw;
-          box-sizing: border-box; 
-        }
-        .flex-sidebar { width: 280px; flex-shrink: 0; position: sticky; top: 120px; border-left: 1px solid ${colors.border}; padding-left: 40px; }
-        
+        .flex-container { display: flex; flex-direction: row; max-width: 1400px; margin: 0 auto; padding: 60px 40px; gap: 60px; align-items: stretch; flex-grow: 1; width: 100%; box-sizing: border-box; }
+        .flex-content { flex: 1 1 0%; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+        .flex-sidebar { width: 280px; flex-shrink: 0; border-left: 1px solid ${colors.border}; padding-left: 40px; }
+        .sticky-nav-inner { position: sticky; top: 120px; height: calc(100vh - 140px); overflow-y: auto; }
         .section-wrap { margin-bottom: 120px; width: 100%; }
         .hero-title { font-size: 40px !important; line-height: 1.3 !important; margin-bottom: 20px !important; }
-        .hero-desc { font-size: 18px !important; line-height: 1.6 !important; margin-top: 12px !important; }
-        .hero-header-wrap { padding: 50px 40px 60px 40px; position: relative; }
-        
-        .section-title-container { margin-bottom: 40px !important; padding-bottom: 20px !important; }
-        .section-title { font-size: 34px !important; line-height: 1.3 !important; margin-bottom: 16px !important; }
+        .hero-header-wrap { padding: 40px 40px 60px 40px; position: relative; }
         
         .mobile-fab { display: none !important; }
-
-        /* =========================================
-           ANIMACIONES ELEGANTES DEL MENÚ MÓVIL
-        ========================================= */
-        .mobile-menu-overlay { 
-          position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-          background: rgba(10, 15, 20, 0.95); backdrop-filter: blur(16px); 
-          z-index: 10005; display: flex; flex-direction: column; padding: 50px 30px; 
-          opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-        }
+        
+        .mobile-menu-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 15, 20, 0.95); backdrop-filter: blur(16px); z-index: 10005; display: flex; flex-direction: column; padding: 50px 30px; opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         .mobile-menu-overlay.open { opacity: 1; pointer-events: auto; }
-
-        .close-menu-btn {
-          background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-          width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          color: #ffffff !important; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        .close-menu-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff !important; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .close-menu-btn:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
-
         .mobile-menu-item { opacity: 0; transform: translateY(-20px); transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .mobile-menu-overlay.open .mobile-menu-item { opacity: 1; transform: translateY(0); }
-        .mobile-menu-overlay.open .mobile-menu-item:nth-child(1) { transition-delay: 0.1s; }
-        .mobile-menu-overlay.open .mobile-menu-item:nth-child(2) { transition-delay: 0.15s; }
-        .mobile-menu-overlay.open .mobile-menu-item:nth-child(3) { transition-delay: 0.2s; }
-        .mobile-menu-overlay.open .mobile-menu-item:nth-child(4) { transition-delay: 0.25s; }
-        .mobile-menu-overlay.open .mobile-menu-item:nth-child(5) { transition-delay: 0.3s; }
-
         .mobile-link { transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.3s ease; display: block; padding: 12px 0; }
         .mobile-link:hover { transform: translateX(12px); color: #ffffff !important; }
 
@@ -560,29 +830,15 @@ export default function Mondini3Details() {
           .flex-sidebar { display: none !important; }
           .flex-container { padding: 30px 15px; flex-direction: column; gap: 0; overflow-x: hidden; }
           .section-wrap { margin-bottom: 80px; }
-          
           .hero-header-wrap { padding: 30px 20px 40px 20px !important; }
           .hero-title { font-size: 28px !important; line-height: 1.4 !important; margin-bottom: 12px !important; display: block !important; }
-          .hero-desc { font-size: 15px !important; line-height: 1.6 !important; margin-top: 12px !important; margin-bottom: 24px !important; }
-          
-          .section-title-container { margin-bottom: 30px !important; padding-bottom: 15px !important; }
-          .section-title { font-size: 24px !important; line-height: 1.4 !important; margin-bottom: 8px !important; display: block !important; }
-          
-          /* BOTÓN FLOTANTE DINÁMICO (Ocultable) */
-          .mobile-fab { 
-            display: flex !important; position: fixed !important; bottom: 80px !important; right: 24px !important;
-            width: 52px !important; height: 52px !important; border-radius: 50% !important;
-            background-color: ${colors.fabBg} !important; color: ${colors.fabIcon} !important; 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; z-index: 99999 !important; 
-            cursor: pointer !important; align-items: center !important; justify-content: center !important;
-            border: 1px solid rgba(128,128,128,0.2) !important;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s !important;
-          }
+          .mobile-fab { display: flex !important; position: fixed !important; bottom: 80px !important; right: 24px !important; width: 52px !important; height: 52px !important; border-radius: 50% !important; background-color: ${colors.fabBg} !important; color: ${colors.fabIcon} !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; z-index: 99999 !important; cursor: pointer !important; align-items: center !important; justify-content: center !important; border: 1px solid rgba(128,128,128,0.2) !important; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s !important; }
           .mobile-fab.hidden { transform: scale(0) !important; opacity: 0 !important; pointer-events: none !important; }
         }
+        .text-normal { font-size: 15px; line-height: 1.6; color: ${colors.textMain}; }
       `}</style>
 
-      {/* Menú Móvil Modal Premium */}
+      {/* Menú Móvil Original */}
       <div className={`mobile-menu-overlay ${showMobileMenu ? 'open' : ''}`}>
         <div
           style={{
@@ -615,7 +871,6 @@ export default function Mondini3Details() {
             />
           </button>
         </div>
-
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, flexGrow: 1 }}>
           {SECTIONS.map((section) => (
             <li
@@ -643,10 +898,13 @@ export default function Mondini3Details() {
             </li>
           ))}
         </ul>
-
         <div
           className="mobile-menu-item"
-          style={{ paddingBottom: '30px', transitionDelay: '0.4s' }}
+          style={{
+            marginTop: 'auto',
+            paddingBottom: '30px',
+            transitionDelay: '0.4s',
+          }}
         >
           <Button
             iconName={'status-warning' as any}
@@ -658,7 +916,6 @@ export default function Mondini3Details() {
         </div>
       </div>
 
-      {/* BOTÓN FLOTANTE (FAB) */}
       <button
         className={`mobile-fab ${showMobileMenu ? 'hidden' : ''}`}
         onClick={(e) => {
@@ -684,7 +941,7 @@ export default function Mondini3Details() {
         </svg>
       </button>
 
-      {/* Lightbox */}
+      {/* Lightbox para Imágenes */}
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
@@ -732,6 +989,7 @@ export default function Mondini3Details() {
               borderRadius: '20px',
               objectFit: 'contain',
               boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+              animation: 'slowFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           />
@@ -748,17 +1006,13 @@ export default function Mondini3Details() {
 
       <div style={{ backgroundColor: colors.bgHeader, width: '100%' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          {/* NOTIFICACIONES ORIGINALES (Estáticas) */}
           {flashbarItems.length > 0 && (
-            <div
-              style={{
-                paddingTop: '24px',
-                paddingLeft: '20px',
-                paddingRight: '20px',
-              }}
-            >
-              <Flashbar items={flashbarItems as any} />
+            <div style={{ padding: '24px 40px 0 40px' }}>
+              <Flashbar items={flashbarItems as any} stackItems={true} />
             </div>
           )}
+
           <div className="hero-header-wrap" style={{ color: '#ffffff' }}>
             <nav
               aria-label="Breadcrumb"
@@ -770,36 +1024,163 @@ export default function Mondini3Details() {
                 Línea Mondini 3
               </span>
             </nav>
+
             <Grid
               gridDefinition={[
-                { colspan: { default: 12, l: 8 } },
-                { colspan: { default: 12, l: 4 } },
+                { colspan: { default: 12, l: 9 } },
+                { colspan: { default: 12, l: 3 } },
               ]}
             >
               <div>
                 <h1
                   className="hero-title"
-                  style={{ fontWeight: '900', color: '#ffffff' }}
+                  style={{
+                    fontWeight: '900',
+                    color: '#ffffff',
+                    textTransform: 'uppercase',
+                  }}
                 >
-                  Inventario de Protección: Mondini 3
+                  Catálogo de Puntos Críticos Durante Lavado de Equipos
                 </h1>
-                <p
-                  className="hero-desc"
-                  style={{ color: '#d1d5db', maxWidth: '850px' }}
+
+                <div
+                  style={{
+                    marginTop: '30px',
+                    borderTop: '1px solid rgba(255,255,255,0.15)',
+                    paddingTop: '20px',
+                  }}
                 >
-                  Catálogo visual detallado. Compare el estado físico de cada
-                  componente con su correcto aislamiento antes de inyectar agua
-                  a presión.
-                </p>
+                  <ColumnLayout columns={5} variant="text-grid">
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Planta
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Congelados
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Área
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mondinis
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Equipo
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mondini #3
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Realizado por
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mantenimiento
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Dirigido a
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Sanidad
+                      </div>
+                    </div>
+                  </ColumnLayout>
+                </div>
               </div>
-              <div className="btn-download-wrap">
+
+              <div
+                className="btn-download-wrap"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-end',
+                  paddingTop: '10px',
+                }}
+              >
                 <Button
                   variant={'primary' as any}
                   iconName={'download' as any}
                   loading={isExporting}
                   onClick={handleExportPDF}
                 >
-                  Descargar PDF de Línea 3
+                  Descargar PDF
                 </Button>
               </div>
             </Grid>
@@ -810,31 +1191,95 @@ export default function Mondini3Details() {
       <div className="flex-container">
         <div className="flex-content">
           <div id="intro" className="section-wrap">
-            <SectionTitle
-              title="Propósito de Intervención"
-              subtitle="Minimización de riesgos operativos y eléctricos durante el saneamiento."
-              isDark={isDark}
-            />
-            <div
-              className="intro-text"
-              style={{
-                fontSize: '18px',
-                lineHeight: '1.8',
-                color: colors.textMain,
-              }}
-            >
-              <p>
-                La arquitectura de la empacadora <strong>Mondini 3</strong>{' '}
-                presenta componentes de muy alta sensibilidad en su zona de
-                tracción y en los sistemas de bloqueos de seguridad integrados.
-              </p>
-              <p style={{ color: colors.textSecondary }}>
-                Este protocolo detalla paso a paso el procedimiento innegociable
-                para proteger la instrumentación clave. El incumplimiento de
-                estas directrices puede resultar en fallas de arranque
-                catastróficas y retrasos severos en la línea de producción.
-              </p>
-            </div>
+            <ColumnLayout columns={2} variant="text-grid">
+              <SpaceBetween size="l">
+                <div>
+                  <div
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: colors.textMain,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Propósito
+                  </div>
+                  <p className="text-normal">
+                    Establecer los puntos críticos de protección durante las
+                    actividades de lavado sanitario en los equipos de proceso,
+                    con el fin de prevenir daños en componentes mecánicos,
+                    neumáticos y eléctricos sensibles al agua o químicos de
+                    limpieza, asegurando la integridad del equipo y la
+                    continuidad operativa.
+                  </p>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: colors.textMain,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Alcance
+                  </div>
+                  <p className="text-normal">
+                    Este catálogo aplica al personal de Sanidad involucrado en
+                    actividades de limpieza de equipos en planta 2, incluyendo
+                    la identificación, protección y verificación de componentes
+                    críticos antes, durante y después del lavado. La instrucción
+                    aplica para todos los componentes equivalentes presentes en
+                    el equipo o línea, aun cuando no se identifiquen
+                    individualmente.
+                  </p>
+                </div>
+              </SpaceBetween>
+
+              <SpaceBetween size="l">
+                <div
+                  style={{
+                    backgroundColor: isDark
+                      ? 'rgba(215, 43, 15, 0.1)'
+                      : '#fdf3f1',
+                    padding: '24px',
+                    borderLeft: '4px solid #d13212',
+                    borderRadius: '0 8px 8px 0',
+                    height: '100%',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: '900',
+                      color: '#d13212',
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <Icon name="status-warning" variant="error" /> Nota de
+                    seguridad
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '15px',
+                      lineHeight: '1.6',
+                      margin: 0,
+                      color: isDark ? '#fbfbfb' : '#16191f',
+                      fontWeight: '500',
+                    }}
+                  >
+                    El lavado inadecuado de componentes críticos puede ocasionar
+                    fallas en el equipo y generar condiciones inseguras. Es
+                    obligatorio seguir las instrucciones de protección
+                    establecidas en este catálogo.
+                  </p>
+                </div>
+              </SpaceBetween>
+            </ColumnLayout>
           </div>
 
           <div id="tabla" className="section-wrap">
@@ -854,12 +1299,11 @@ export default function Mondini3Details() {
                         display: 'block',
                       }}
                     >
-                      Sección 1: Entrada y Dosificación
+                      Sección 1: Entrada
                     </span>
                   </Header>
                 }
               >
-                {/* ENVOLTORIO FLEXIBLE ESTRICTO PARA LAS TABLAS */}
                 <div
                   style={{
                     overflowX: 'auto',
@@ -872,36 +1316,30 @@ export default function Mondini3Details() {
                     variant="embedded"
                     columnDefinitions={[
                       {
-                        id: 'tech',
-                        header: 'Componente Técnico',
+                        id: 'name',
+                        header: 'Componente',
                         cell: (e) => (
                           <span
-                            style={{ fontSize: '14px', fontWeight: 'bold' }}
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              color: colors.activeLink,
+                            }}
                           >
-                            {e.tech}
+                            {e.name}
                           </span>
                         ),
-                        minWidth: 200,
-                      },
-                      {
-                        id: 'raw',
-                        header: 'Nombre Físico',
-                        cell: (e) => (
-                          <span style={{ color: '#879596', fontSize: '13px' }}>
-                            {e.raw}
-                          </span>
-                        ),
-                        minWidth: 160,
+                        minWidth: 250,
                       },
                       {
                         id: 'desc',
-                        header: 'Instrucción de Cuidado',
+                        header: 'Instrucción de Aislamiento',
                         cell: (e) => (
                           <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
                             {e.desc}
                           </span>
                         ),
-                        minWidth: 280,
+                        minWidth: 350,
                       },
                     ]}
                     items={m3Sec1Data}
@@ -909,7 +1347,6 @@ export default function Mondini3Details() {
                   />
                 </div>
               </Container>
-
               <Container
                 header={
                   <Header variant="h2">
@@ -920,7 +1357,7 @@ export default function Mondini3Details() {
                         display: 'block',
                       }}
                     >
-                      Sección 2: Sellado, Vacío y Salida
+                      Sección 2: Inyección de Jarabe
                     </span>
                   </Header>
                 }
@@ -937,39 +1374,91 @@ export default function Mondini3Details() {
                     variant="embedded"
                     columnDefinitions={[
                       {
-                        id: 'tech',
-                        header: 'Componente Técnico',
+                        id: 'name',
+                        header: 'Componente',
                         cell: (e) => (
                           <span
-                            style={{ fontSize: '14px', fontWeight: 'bold' }}
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              color: colors.activeLink,
+                            }}
                           >
-                            {e.tech}
+                            {e.name}
                           </span>
                         ),
-                        minWidth: 200,
-                      },
-                      {
-                        id: 'raw',
-                        header: 'Nombre Físico',
-                        cell: (e) => (
-                          <span style={{ color: '#879596', fontSize: '13px' }}>
-                            {e.raw}
-                          </span>
-                        ),
-                        minWidth: 160,
+                        minWidth: 250,
                       },
                       {
                         id: 'desc',
-                        header: 'Instrucción de Cuidado',
+                        header: 'Instrucción de Aislamiento',
                         cell: (e) => (
                           <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
                             {e.desc}
                           </span>
                         ),
-                        minWidth: 280,
+                        minWidth: 350,
                       },
                     ]}
                     items={m3Sec2Data}
+                    stripedRows
+                  />
+                </div>
+              </Container>
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 3: Sellado, Vacío y Salida
+                    </span>
+                  </Header>
+                }
+              >
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'name',
+                        header: 'Componente',
+                        cell: (e) => (
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 'bold',
+                              color: colors.activeLink,
+                            }}
+                          >
+                            {e.name}
+                          </span>
+                        ),
+                        minWidth: 250,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Aislamiento',
+                        cell: (e) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 350,
+                      },
+                    ]}
+                    items={m3Sec3Data}
                     stripedRows
                   />
                 </div>
@@ -980,31 +1469,37 @@ export default function Mondini3Details() {
           <div id="sec1" className="section-wrap">
             <SectionTitle
               title="Mondini 3 - Sección 1"
-              subtitle="Inspección detallada de Componentes de Entrada y Sistemas de Dosificación de Jarabe."
+              subtitle="Inspección visual detallada de Componentes de Entrada."
               isDark={isDark}
             />
             <div style={{ width: '100%', overflow: 'hidden' }}>
               {renderCards(m3Sec1Data)}
             </div>
           </div>
-
           <div id="sec2" className="section-wrap">
             <SectionTitle
               title="Mondini 3 - Sección 2"
-              subtitle="Revisión exhaustiva de Componentes en la Zona de Sellado, Vacío y Salida de Producto."
+              subtitle="Inspección visual de Componentes en Inyección de Jarabe."
               isDark={isDark}
             />
             <div style={{ width: '100%', overflow: 'hidden' }}>
               {renderCards(m3Sec2Data)}
             </div>
           </div>
+          <div id="sec3" className="section-wrap">
+            <SectionTitle
+              title="Mondini 3 - Sección 3"
+              subtitle="Inspección visual exhaustiva en la Zona de Sellado, Vacío y Salida de Producto."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              {renderCards(m3Sec3Data)}
+            </div>
+          </div>
         </div>
 
         <div className="flex-sidebar">
-          <div
-            className="sticky-nav-inner"
-            style={{ position: 'sticky', top: '120px' }}
-          >
+          <div className="sticky-nav-inner">
             <SpaceBetween size="xxl">
               <div>
                 <h3
@@ -1047,7 +1542,7 @@ export default function Mondini3Details() {
                               ? `3px solid ${colors.activeLink}`
                               : '3px solid transparent',
                           marginLeft: '-3px',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                           backgroundColor:
                             activeSection === section.id
                               ? isDark
@@ -1062,57 +1557,9 @@ export default function Mondini3Details() {
                   ))}
                 </ul>
               </div>
-              <div
-                style={{
-                  height: '2px',
-                  backgroundColor: colors.border,
-                  width: '50%',
-                }}
-              ></div>
-              <div>
-                <h3
-                  style={{
-                    fontSize: '18px',
-                    fontWeight: '800',
-                    marginBottom: '16px',
-                    color: colors.textMain,
-                  }}
-                >
-                  ¿Problemas en el equipo?
-                </h3>
-                <p
-                  style={{
-                    fontSize: '14px',
-                    color: colors.textSecondary,
-                    marginBottom: '20px',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  Si detecta sellos rotos, cables expuestos o humedad interna,
-                  detenga el lavado de inmediato.
-                </p>
-                <Button iconName={'status-warning' as any} fullWidth>
-                  Levantar Ticket Urgente
-                </Button>
-              </div>
             </SpaceBetween>
           </div>
         </div>
-      </div>
-
-      <div
-        style={{
-          position: 'absolute',
-          top: '-9999px',
-          left: '-9999px',
-          zIndex: -10,
-        }}
-      >
-        <PrintTemplate
-          ref={printContainerRef}
-          dataSec1={m3Sec1Data}
-          dataSec2={m3Sec2Data}
-        />
       </div>
 
       <Footer />

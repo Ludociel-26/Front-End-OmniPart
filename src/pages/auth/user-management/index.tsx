@@ -2,7 +2,6 @@ import axios from 'axios';
 import { useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
-// Imports de Cloudscape Design System
 import {
   Table,
   Box,
@@ -22,16 +21,15 @@ import {
 } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 
-// Contexto Global
 import { AppContent } from '@/context/AppContext';
 
-// Imports Locales
 import Navbar from '@/components/layouts/AppHeader';
 import GlobalSidebar from '@/components/layouts/AppSidebar';
 import { Footer } from '@/components/layouts/AppFooter';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 
-// --- ESTILOS CSS ---
+import emptyStateImage from '@/assets/table-items/robot-empty.svg';
+
 const awsStyles = `
   .awsui-table-row-selected > td {
     box-shadow: none !important;
@@ -39,25 +37,21 @@ const awsStyles = `
     border-top: 2px solid #0972d3 !important;
     border-bottom: 2px solid #0972d3 !important;
   }
-
   .awsui-table-row-selected > td:first-child {
     border-left: 2px solid #0972d3 !important;
     border-top-left-radius: 12px !important; 
     border-bottom-left-radius: 12px !important;
   }
-
   .awsui-table-row-selected > td:last-child {
     border-right: 2px solid #0972d3 !important;
     border-top-right-radius: 12px !important;
     border-bottom-right-radius: 12px !important;
   }
-
   .awsui-table-select {
     padding-left: 10px !important;
   }
 `;
 
-// --- INTERFACES ---
 export interface UserItem {
   id: string;
   email: string;
@@ -73,14 +67,13 @@ export interface UserItem {
   is_active: boolean;
 }
 
-// --- COLUMNAS ---
 const COLUMN_DEFINITIONS = [
   {
     id: 'name',
     header: 'Nombre',
     cell: (item: UserItem) => (
       <Link href="#" variant="primary" {...({ fontSize: 'body-m' } as any)}>
-        <b>{`${item.name} ${item.surname}`}</b>
+        <b>{`${item.name} ${item.surname || ''}`}</b>
       </Link>
     ),
     sortingField: 'name',
@@ -139,8 +132,39 @@ const ValueWithLabel = ({
   </div>
 );
 
+const EmptyState = ({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) => (
+  <Box textAlign="center" color="inherit">
+    <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+      <b>{title}</b>
+    </Box>
+    <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+      {subtitle}
+    </Box>
+    <Box padding={{ bottom: 'l' }}>
+      <img
+        src={emptyStateImage}
+        alt="Estado vacío"
+        style={{
+          maxWidth: '250px',
+          width: '100%',
+          display: 'block',
+          margin: '0 auto',
+        }}
+      />
+    </Box>
+    {action}
+  </Box>
+);
+
 export default function UsersTable() {
-  // 🚩 CORRECCIÓN: Extraemos el contexto sin la URL quemada y leemos la URL desde el .env de Vite
   const { alerts, addAlert, setPageLoading } = useContext(AppContent) || {};
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -161,18 +185,21 @@ export default function UsersTable() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItems, setSelectedItems] = useState<UserItem[]>([]);
 
+  // Estados Asíncronos para control de peticiones simultáneas
+  const [isToggling, setIsToggling] = useState(false);
+  const [isTogglingVerification, setIsTogglingVerification] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+
   const [splitPanelOpen, setSplitPanelOpen] = useState(false);
   const [splitPanelSize, setSplitPanelSize] = useState(280);
 
   const isMounted = useRef(true);
-  // FIX: Candado para asegurar que la petición se haga solo 1 vez al entrar
   const hasFetched = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
-    if (setPageLoading) {
-      setPageLoading(false);
-    }
+    if (setPageLoading) setPageLoading(false);
     return () => {
       isMounted.current = false;
     };
@@ -180,69 +207,37 @@ export default function UsersTable() {
 
   const fetchUsers = useCallback(
     async (isRefresh = false) => {
-      const alertId = addAlert
-        ? addAlert(
-            'info',
-            isRefresh
-              ? 'Actualizando lista de usuarios...'
-              : 'Obteniendo usuarios de la base de datos...',
-            'Sincronizando',
-            undefined,
-            true,
-          )
-        : undefined;
-
       try {
         if (isMounted.current) {
           if (isRefresh) setRefreshing(true);
           else setLoading(true);
         }
 
-        // 🚩 Aquí ya utiliza el backendUrl traído desde el .env
         const response = await axios.get(`${backendUrl}/api/user/all-users`, {
           withCredentials: true,
         });
 
-        if (response.data.success) {
-          if (isMounted.current) {
-            setUsersData(response.data.users);
-          }
-          await new Promise((resolve) => setTimeout(resolve, 600));
-
-          // FIX: Notificamos "Éxito" incondicionalmente para que cierre el Load Global siempre
-          if (addAlert) {
-            addAlert(
-              'success',
-              'Listado de usuarios cargado correctamente.',
-              'Éxito',
-              alertId,
-              false,
-            );
-          }
-        } else {
-          // FIX: Notificamos "Advertencia" incondicionalmente
-          if (addAlert) {
-            addAlert(
-              'warning',
-              'No se encontraron usuarios o hubo un problema al leer la base de datos.',
-              'Advertencia',
-              alertId,
-              false,
-            );
-          }
+        if (response.data.success && isMounted.current) {
+          setUsersData(response.data.users);
         }
       } catch (error: any) {
-        console.error('Error cargando usuarios:', error);
-        // FIX: Notificamos "Error" incondicionalmente
-        if (addAlert) {
-          addAlert(
-            'error',
-            error.message || 'Error al conectar con el servidor',
-            'Fallo de Red',
-            alertId,
-            false,
-          );
+        if (error.response?.status === 403) {
+          if (addAlert)
+            addAlert(
+              'error',
+              error.response.data.message ||
+                'No tienes permisos para ver el directorio.',
+              'Acceso Denegado',
+            );
+        } else {
+          if (addAlert)
+            addAlert(
+              'error',
+              'Error al conectar con el servidor.',
+              'Fallo de Red',
+            );
         }
+        if (isMounted.current) setUsersData([]);
       } finally {
         if (isMounted.current) {
           setLoading(false);
@@ -250,10 +245,9 @@ export default function UsersTable() {
         }
       }
     },
-    [backendUrl, addAlert], // backendUrl ahora es una dependencia de entorno
+    [backendUrl, addAlert],
   );
 
-  // FIX: Solo ejecutar la llamada inicial si no se ha hecho ya
   useEffect(() => {
     if (!hasFetched.current) {
       hasFetched.current = true;
@@ -262,12 +256,157 @@ export default function UsersTable() {
   }, [fetchUsers]);
 
   useEffect(() => {
-    if (selectedItems.length > 0) {
-      setSplitPanelOpen(true);
-    } else {
-      setSplitPanelOpen(false);
-    }
+    if (selectedItems.length > 0) setSplitPanelOpen(true);
+    else setSplitPanelOpen(false);
   }, [selectedItems]);
+
+  const handleToggleStatus = async (user: UserItem) => {
+    try {
+      setIsToggling(true);
+      const res = await axios.put(
+        `${backendUrl}/api/user/toggle-status/${user.id}`,
+        {},
+        { withCredentials: true },
+      );
+
+      if (res.data.success) {
+        if (addAlert)
+          addAlert('success', res.data.message, 'Estado Actualizado');
+
+        setUsersData((prev) =>
+          prev.map((u) =>
+            u.id === user.id ? { ...u, is_active: res.data.is_active } : u,
+          ),
+        );
+        setSelectedItems([{ ...user, is_active: res.data.is_active }]);
+      }
+    } catch (error: any) {
+      if (error.response?.status === 400 || error.response?.status === 403) {
+        if (addAlert)
+          addAlert('warning', error.response.data.message, 'Acción Denegada');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message || 'Error al cambiar estado.',
+            'Error',
+          );
+      }
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleToggleVerification = async (user: UserItem) => {
+    try {
+      setIsTogglingVerification(true);
+      const res = await axios.put(
+        `${backendUrl}/api/user/toggle-verification/${user.id}`,
+        {},
+        { withCredentials: true },
+      );
+
+      if (res.data.success) {
+        if (addAlert)
+          addAlert('success', res.data.message, 'Verificación Actualizada');
+
+        setUsersData((prev) =>
+          prev.map((u) =>
+            u.id === user.id
+              ? { ...u, is_account_verified: res.data.is_account_verified }
+              : u,
+          ),
+        );
+        setSelectedItems([
+          { ...user, is_account_verified: res.data.is_account_verified },
+        ]);
+      }
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        if (addAlert)
+          addAlert('warning', error.response.data.message, 'Acceso Denegado');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message || 'Error al cambiar verificación.',
+            'Error',
+          );
+      }
+    } finally {
+      setIsTogglingVerification(false);
+    }
+  };
+
+  const handleSendReset = async (user: UserItem) => {
+    try {
+      setIsSendingReset(true);
+      const res = await axios.post(
+        `${backendUrl}/api/user/send-reset-instructions/${user.id}`,
+        {},
+        { withCredentials: true },
+      );
+
+      if (res.data.success) {
+        if (addAlert)
+          addAlert(
+            'success',
+            res.data.message,
+            'Correo de Restablecimiento Enviado',
+          );
+      }
+    } catch (error: any) {
+      if (error.response?.status === 400 || error.response?.status === 403) {
+        if (addAlert)
+          addAlert('warning', error.response.data.message, 'Acción Bloqueada');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message ||
+              'Error interno al intentar enviar el correo.',
+            'Error del Servidor',
+          );
+      }
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
+  const handleSendVerification = async (user: UserItem) => {
+    try {
+      setIsSendingVerification(true);
+      const res = await axios.post(
+        `${backendUrl}/api/user/send-verification/${user.id}`,
+        {},
+        { withCredentials: true },
+      );
+
+      if (res.data.success) {
+        if (addAlert)
+          addAlert(
+            'success',
+            res.data.message,
+            'Correo de Verificación Enviado',
+          );
+      }
+    } catch (error: any) {
+      if (error.response?.status === 400 || error.response?.status === 403) {
+        if (addAlert)
+          addAlert('warning', error.response.data.message, 'Acción Bloqueada');
+      } else {
+        if (addAlert)
+          addAlert(
+            'error',
+            error.response?.data?.message ||
+              'Error al intentar enviar el correo de verificación.',
+            'Error del Servidor',
+          );
+      }
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
 
   const {
     items,
@@ -282,17 +421,22 @@ export default function UsersTable() {
     selection: {},
     filtering: {
       empty: (
-        <Box textAlign="center" color="inherit">
-          <b>No hay usuarios</b>
-        </Box>
+        <EmptyState
+          title="Directorio Vacío"
+          subtitle="No se encontraron usuarios o no tienes permisos."
+          action={<Button variant="primary">Crear usuario</Button>}
+        />
       ),
       noMatch: (
-        <Box textAlign="center" color="inherit">
-          <b>No hay coincidencias</b>
-          <Button onClick={() => actions.setFiltering('')}>
-            Borrar filtro
-          </Button>
-        </Box>
+        <EmptyState
+          title="No hay coincidencias"
+          subtitle="No se encontraron usuarios que coincidan con la búsqueda."
+          action={
+            <Button onClick={() => actions.setFiltering('')}>
+              Borrar filtro
+            </Button>
+          }
+        />
       ),
     },
   });
@@ -307,6 +451,12 @@ export default function UsersTable() {
         </SplitPanel>
       );
 
+    const isAnyActionLoading =
+      isSendingReset ||
+      isToggling ||
+      isSendingVerification ||
+      isTogglingVerification;
+
     return (
       <SplitPanel
         header={
@@ -314,8 +464,44 @@ export default function UsersTable() {
             <Header
               actions={
                 <SpaceBetween direction="horizontal" size="xs">
-                  <Button>Restablecer Contraseña</Button>
-                  <Button variant={user.is_active ? 'normal' : 'primary'}>
+                  {/* Botón para forzar la validación de cuenta desde el sistema */}
+                  <Button
+                    iconName={
+                      user.is_account_verified
+                        ? 'status-negative'
+                        : 'status-positive'
+                    }
+                    loading={isTogglingVerification}
+                    onClick={() => handleToggleVerification(user)}
+                    disabled={isAnyActionLoading}
+                  >
+                    {user.is_account_verified
+                      ? 'Desverificar'
+                      : 'Validar Cuenta'}
+                  </Button>
+
+                  <Button
+                    loading={isSendingVerification}
+                    onClick={() => handleSendVerification(user)}
+                    disabled={isAnyActionLoading || user.is_account_verified}
+                  >
+                    Enviar Verificación
+                  </Button>
+
+                  <Button
+                    loading={isSendingReset}
+                    onClick={() => handleSendReset(user)}
+                    disabled={isAnyActionLoading || !user.is_account_verified}
+                  >
+                    Restablecer Contraseña
+                  </Button>
+
+                  <Button
+                    variant={user.is_active ? 'normal' : 'primary'}
+                    loading={isToggling}
+                    onClick={() => handleToggleStatus(user)}
+                    disabled={isAnyActionLoading}
+                  >
                     {user.is_active ? 'Deshabilitar' : 'Habilitar'}
                   </Button>
                 </SpaceBetween>
@@ -390,7 +576,6 @@ export default function UsersTable() {
             </div>
           </SpaceBetween>
         </ColumnLayout>
-
         <Box padding="s"></Box>
       </SplitPanel>
     );
@@ -455,7 +640,10 @@ export default function UsersTable() {
             stickyHeader={true}
             stickyHeaderVerticalOffset={90}
             loading={loading}
-            loadingText="Cargando usuarios..."
+            loadingText="Verificando permisos y cargando directorio..."
+            empty={
+              <div style={{ padding: '40px 0' }}>{collectionProps.empty}</div>
+            }
             header={
               <Header
                 variant="h1"
@@ -494,7 +682,7 @@ export default function UsersTable() {
                   ],
                 }}
                 visibleContentPreference={{
-                  title: 'Seleccionar columnas visibles',
+                  title: 'Columnas visibles',
                   options: [
                     {
                       label: 'Propiedades principales',

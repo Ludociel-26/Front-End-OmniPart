@@ -3,12 +3,14 @@ import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 
+// IMPORTACIÓN DE TU LOGO
+import LOGO_IMAGE from '@/assets/icons/appiconf.png';
+
 // CLOUDSCAPE IMPORTS
 import TopNavigation from '@cloudscape-design/components/top-navigation';
 import Button from '@cloudscape-design/components/button';
 
 // LUCIDE ICONS (Depurados 100%)
-// FIX: Se eliminaron Layers y BoxIcon porque no se estaban utilizando
 import {
   ScanLine,
   Camera,
@@ -89,8 +91,9 @@ const QuickFindNav = () => {
           href: '#',
           title: 'QuickFind',
           logo: {
-            src: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMgN3YyYTMgMyAwIDAgMCAzIDNoM20tNi01YTMgMyAwIDAgMSAzLTNoM20wIDE0SDZhMyAzIDAgMCAxLTMtM3YtMm0xMiA1aDNhMyAzIDAgMCAwIDMtM3YtMm0tNS0xMGgzYTMgMyAwIDAgMSAzIDN2MiIvPjwvc3ZnPg==',
-            alt: 'Logo',
+            // FIX: Implementación de tu variable LOGO_IMAGE
+            src: LOGO_IMAGE,
+            alt: 'QuickFind Logo',
           },
         }}
         utilities={[
@@ -192,7 +195,6 @@ const AdvancedVectorScanner = () => {
                   cy="20"
                   r="4"
                   fill="#ff9900"
-                  // FIX: as any para el tipado estricto
                   animate={pulseGlow as any}
                 />
                 <motion.circle
@@ -200,7 +202,6 @@ const AdvancedVectorScanner = () => {
                   cy="150"
                   r="4"
                   fill="#6aaf35"
-                  // FIX: as any para el tipado estricto
                   animate={pulseGlow as any}
                 />
                 <motion.circle
@@ -208,7 +209,6 @@ const AdvancedVectorScanner = () => {
                   cy="50"
                   r="4"
                   fill="#00a1c9"
-                  // FIX: as any para el tipado estricto
                   animate={pulseGlow as any}
                 />
               </svg>
