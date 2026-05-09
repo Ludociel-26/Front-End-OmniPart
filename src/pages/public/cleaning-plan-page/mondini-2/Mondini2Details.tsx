@@ -33,6 +33,7 @@ const SECTIONS = [
   { id: 'tabla', text: 'Inventario Completo' },
   { id: 'sec1', text: 'Sección 1 (Entrada)' },
   { id: 'sec2', text: 'Sección 2 (Sellado)' },
+  { id: 'sec3', text: 'Sección 3 (Sellado, Vacío y Salida)' },
 ];
 
 // ==========================================
@@ -459,7 +460,43 @@ export default function Mondini2Details() {
     }
   };
 
+  // NUEVO: Función inteligente que fuerza la conversión asíncrona de imágenes pesadas a Base64
+  const processPdfData = async (dataArray: any[]) => {
+    const processed = [];
+    for (const item of dataArray) {
+      let pdfImageSrc = null;
+      const originalSrc =
+        item.image?.src || (item.images && item.images[0]?.src);
+      if (originalSrc) {
+        if (originalSrc.startsWith('data:')) {
+          pdfImageSrc = originalSrc;
+        } else {
+          // Si es una URL (Vite lo sacó por ser mayor a 4KB), lo forzamos a Base64 en memoria
+          const imgData = await getLogoData(originalSrc);
+          if (imgData) pdfImageSrc = imgData.data;
+        }
+      }
+      processed.push({ ...item, pdfImageSrc });
+    }
+    return processed;
+  };
+
   const handleExportPDF = async () => {
+    // ID único para la notificación del PDF
+    const exportMsgId = 'pdf-export-status';
+
+    // Disparamos la notificación de "Cargando..."
+    setFlashbarItems((prev) => [
+      {
+        type: 'info',
+        loading: true,
+        content:
+          'Generando documento PDF y procesando imágenes. Por favor, espere...',
+        id: exportMsgId,
+      },
+      ...prev,
+    ]);
+
     setIsExporting(true);
 
     try {
@@ -493,6 +530,11 @@ export default function Mondini2Details() {
       };
 
       const logoData = await getLogoData(logoSistema);
+
+      // Convertimos todas las imágenes a Base64 antes de dárselas a autoTable (Evita imágenes en blanco)
+      const pdfSec1Data = await processPdfData(m2Sec1Data);
+      const pdfSec2Data = await processPdfData(m2Sec2Data);
+      const pdfSec3Data = await processPdfData(m2Sec3Data);
 
       // --- HEADER GLOBAL MONDINI 2 ---
       const drawAWSHeader = () => {
@@ -667,8 +709,10 @@ export default function Mondini2Details() {
       doc.rect(margin, currentY, contentWidth, preBoxH);
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
+
+      // SIN EMOJIS: Garantiza que no aparezcan símbolos extraños en la impresión
       const preText = doc.splitTextToSize(
-        '⚠️ NOTA DE SEGURIDAD\n\nEl lavado inadecuado de componentes críticos puede ocasionar fallas en el equipo y generar condiciones inseguras. Es obligatorio seguir las instrucciones de protección establecidas en este catálogo:\n\nX NO dirigir agua a presión sobre componentes eléctricos o neumáticos.\nX NO remover protecciones durante lavado.\nX NO aplicar químicos directamente sobre sensores o sellos.',
+        'NOTA DE SEGURIDAD\n\nEl lavado inadecuado de componentes críticos puede ocasionar fallas en el equipo y generar condiciones inseguras. Es obligatorio seguir las instrucciones de protección establecidas en este catálogo:\n\nX NO dirigir agua a presión sobre componentes eléctricos o neumáticos.\nX NO remover protecciones durante lavado.\nX NO aplicar químicos directamente sobre sensores o sellos.',
         contentWidth - 16,
       );
       doc.text(preText, margin + 8, currentY + 16);
@@ -689,7 +733,6 @@ export default function Mondini2Details() {
           head: [['No', 'Componente', 'Instrucción']],
           body: data.map((item, i) => [
             String(i + 1),
-            // CORRECCIÓN APLICADA: Ahora lee correctamente .tech y .raw si existen.
             `${item.name || item.tech || '---'}${
               item.raw ? `\nFísico: ${item.raw}` : ''
             }`,
@@ -735,7 +778,6 @@ export default function Mondini2Details() {
 
       drawTextTable('SECCIÓN 1: ENTRADA Y DOSIFICACIÓN', m2Sec1Data);
       drawTextTable('SECCIÓN 2: INYECCIÓN DE JARABE', m2Sec2Data);
-      // CORRECCIÓN APLICADA: Referencia a m2Sec3Data en lugar de m3Sec3Data
       drawTextTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m2Sec3Data);
 
       // ==========================================
@@ -790,12 +832,30 @@ export default function Mondini2Details() {
             if (dataHook.section === 'body' && dataHook.column.index === 1) {
               const rowIndex = dataHook.row.index;
 
-              const imgSrc =
-                data[rowIndex].image?.src ||
-                (data[rowIndex].images && data[rowIndex].images[0]?.src);
+              // Extraemos el Base64 que procesamos en processPdfData
+              const imgSrc = data[rowIndex].pdfImageSrc;
+
+              const drawFallbackText = () => {
+                doc.setFontSize(7.5);
+                doc.setTextColor(150, 150, 150);
+                const txt = 'Fotografía no disponible';
+                const w = doc.getTextWidth(txt);
+                doc.text(
+                  txt,
+                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
+                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
+                );
+                doc.setTextColor(0, 0, 0);
+              };
 
               if (dataHook.cell && imgSrc) {
                 try {
+                  const format =
+                    imgSrc.includes('image/png') ||
+                    imgSrc.toLowerCase().endsWith('.png')
+                      ? 'PNG'
+                      : 'JPEG';
+
                   const imgProps = doc.getImageProperties(imgSrc);
                   const imgRatio = imgProps.width / imgProps.height;
 
@@ -817,7 +877,7 @@ export default function Mondini2Details() {
 
                   doc.addImage(
                     imgSrc,
-                    'JPEG',
+                    format, // Formato dinámico para evitar fondos negros o errores en PNG
                     xOffset,
                     yOffset,
                     finalW,
@@ -826,19 +886,12 @@ export default function Mondini2Details() {
                     'FAST',
                   );
                 } catch (e) {
-                  // Fallback
+                  // Si falla la inyección de la foto, muestra la leyenda
+                  drawFallbackText();
                 }
               } else if (dataHook.cell) {
-                doc.setFontSize(7.5);
-                doc.setTextColor(150, 150, 150);
-                const txt = 'Fotografía no disponible';
-                const w = doc.getTextWidth(txt);
-                doc.text(
-                  txt,
-                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
-                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
-                );
-                doc.setTextColor(0, 0, 0);
+                // Si desde el inicio no hay foto o es nulo, muestra la leyenda
+                drawFallbackText();
               }
             }
           },
@@ -847,19 +900,19 @@ export default function Mondini2Details() {
         return (doc as any).lastAutoTable.finalY + 15;
       };
 
+      // Le pasamos la data procesada con las imágenes Base64 garantizadas
       currentY = drawVisualTable(
         'SECCIÓN 1: ENTRADA Y DOSIFICACIÓN',
-        m2Sec1Data,
+        pdfSec1Data,
       );
 
       doc.addPage();
       currentY = safeTopMargin + 10;
-      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', m2Sec2Data);
+      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', pdfSec2Data);
 
       doc.addPage();
       currentY = safeTopMargin + 10;
-      // CORRECCIÓN APLICADA: Referencia a m2Sec3Data en lugar de m3Sec3Data
-      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m2Sec3Data);
+      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', pdfSec3Data);
 
       // Inyección Global de Headers y Footers
       const pageCount = (doc as any).internal.getNumberOfPages();
@@ -870,8 +923,39 @@ export default function Mondini2Details() {
       }
 
       doc.save('Mondini2_Plan_Lavado.pdf');
+
+      // Notificación de Éxito al finalizar
+      setFlashbarItems((prev) =>
+        prev.map((item) =>
+          item.id === exportMsgId
+            ? {
+                type: 'success',
+                content: 'Documento PDF generado y descargado con éxito.',
+                id: exportMsgId,
+                dismissible: true,
+                onDismiss: () => handleDismiss(exportMsgId),
+              }
+            : item,
+        ),
+      );
     } catch (error) {
       console.error('Error crítico al generar PDF: ', error);
+
+      // Notificación de Error
+      setFlashbarItems((prev) =>
+        prev.map((item) =>
+          item.id === exportMsgId
+            ? {
+                type: 'error',
+                content:
+                  'Hubo un error al generar el PDF. Por favor, inténtelo de nuevo.',
+                id: exportMsgId,
+                dismissible: true,
+                onDismiss: () => handleDismiss(exportMsgId),
+              }
+            : item,
+        ),
+      );
     } finally {
       setIsExporting(false);
     }
@@ -1657,7 +1741,6 @@ export default function Mondini2Details() {
                         minWidth: 350,
                       },
                     ]}
-                    // CORRECCIÓN: Inyectado m2Sec3Data correctamente
                     items={m2Sec3Data}
                     stripedRows
                   />
@@ -1693,7 +1776,6 @@ export default function Mondini2Details() {
               isDark={isDark}
             />
             <div style={{ width: '100%', overflow: 'hidden' }}>
-              {/* CORRECCIÓN: Inyectado m2Sec3Data correctamente */}
               {renderCards(m2Sec3Data)}
             </div>
           </div>
