@@ -1,474 +1,44 @@
 import * as React from 'react';
 import { useContext, useState, useEffect } from 'react';
 import { AppContent } from '@/context/AppContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-// FIX: Se eliminó 'Header' porque no se estaba utilizando
 import {
   TopNavigation,
   SpaceBetween,
-  Grid,
   Cards,
-  Box,
   Icon,
   Button,
   Flashbar,
   Table,
   Container,
+  Grid,
+  Box,
+  ColumnLayout,
+  Header,
 } from '@cloudscape-design/components';
 
 // ==========================================
-// IMPORTACIÓN DE IMÁGENES - MONDINI 6
-// Descomenta estas líneas y agrega tus rutas.
+// IMPORTACIONES
 // ==========================================
+import { Footer } from '@/components/layouts/AppFooter';
+import logoSistema from '@/assets/icons/logo.svg';
 
-// --- SECCIÓN 1 ---
-// import imgMedidorAire1_Fisico from '@/assets/...';
-// import imgMedidorAire1_Protegido from '@/assets/...';
-// import imgChumaseras2_Fisico from '@/assets/...';
-// import imgChumaseras2_Protegido from '@/assets/...';
-// import imgSensorEntrada_Fisico from '@/assets/...';
-// import imgSensorEntrada_Protegido from '@/assets/...';
-// import imgBotoneraS1_Fisico from '@/assets/...';
-// import imgBotoneraS1_Protegido from '@/assets/...';
-// import imgSelectorS1_Fisico from '@/assets/...';
-// import imgSelectorS1_Protegido from '@/assets/...';
-// import imgMotorS1_Fisico from '@/assets/...';
-// import imgMotorS1_Protegido from '@/assets/...';
-// import imgBotonParoS1_Fisico from '@/assets/...';
-// import imgBotonParoS1_Protegido from '@/assets/...';
-// import imgConectoresDebajoJaula_Fisico from '@/assets/...';
-// import imgConectoresDebajoJaula_Protegido from '@/assets/...';
-// import imgManguerasAzules_Fisico from '@/assets/...';
-// import imgManguerasAzules_Protegido from '@/assets/...';
-// import imgSensorJaula3_Fisico from '@/assets/...';
-// import imgSensorJaula3_Protegido from '@/assets/...';
-// import imgManguerasJarabe_Fisico from '@/assets/...';
-// import imgManguerasJarabe_Protegido from '@/assets/...';
-// import imgTableroJarabe_Fisico from '@/assets/...';
-// import imgTableroJarabe_Protegido from '@/assets/...';
-// import imgTorretaJarabe_Fisico from '@/assets/...';
-// import imgTorretaJarabe_Protegido from '@/assets/...';
-// import imgBotoneraJarabe_Fisico from '@/assets/...';
-// import imgBotoneraJarabe_Protegido from '@/assets/...';
-// import imgCajaElectricaJarabe_Fisico from '@/assets/...';
-// import imgCajaElectricaJarabe_Protegido from '@/assets/...';
-// import imgMedidorAire2_Fisico from '@/assets/...';
-// import imgMedidorAire2_Protegido from '@/assets/...';
-// import imgCableadoJarabeDosLados_Fisico from '@/assets/...';
-// import imgCableadoJarabeDosLados_Protegido from '@/assets/...';
-// import imgMotoresDebajo4_Fisico from '@/assets/...';
-// import imgMotoresDebajo4_Protegido from '@/assets/...';
-
-// --- SECCIÓN 2 ---
-// import imgMotorBandaDentada_Fisico from '@/assets/...';
-// import imgMotorBandaDentada_Protegido from '@/assets/...';
-// import imgCajaCableadoMotor_Fisico from '@/assets/...';
-// import imgCajaCableadoMotor_Protegido from '@/assets/...';
-// import imgBarometroVacio_Fisico from '@/assets/...';
-// import imgBarometroVacio_Protegido from '@/assets/...';
-// import imgConectoresInfCorrienteVacio_Fisico from '@/assets/...';
-// import imgConectoresInfCorrienteVacio_Protegido from '@/assets/...';
-// import imgInterlockJaulaEntrada_Fisico from '@/assets/...';
-// import imgInterlockJaulaEntrada_Protegido from '@/assets/...';
-// import imgSensorMagnetico4_Fisico from '@/assets/...';
-// import imgSensorMagnetico4_Protegido from '@/assets/...';
-// import imgSensoresEntradaAma2_Fisico from '@/assets/...';
-// import imgSensoresEntradaAma2_Protegido from '@/assets/...';
-// import imgSensorEntradaArriba_Fisico from '@/assets/...';
-// import imgSensorEntradaArriba_Protegido from '@/assets/...';
-// import imgSensoresRodillos_Fisico from '@/assets/...';
-// import imgSensoresRodillos_Protegido from '@/assets/...';
-// import imgBotoneras2Arriba_Fisico from '@/assets/...';
-// import imgBotoneras2Arriba_Protegido from '@/assets/...';
-// import imgConectorSensorAma_Fisico from '@/assets/...';
-// import imgConectorSensorAma_Protegido from '@/assets/...';
-// import imgConectoresInfBotoneras_Fisico from '@/assets/...';
-// import imgConectoresInfBotoneras_Protegido from '@/assets/...';
-// import imgConectoresSensoresMag_Fisico from '@/assets/...';
-// import imgConectoresSensoresMag_Protegido from '@/assets/...';
-// import imgBotonesLadoArriba_Fisico from '@/assets/...';
-// import imgBotonesLadoArriba_Protegido from '@/assets/...';
-// import imgSwitchGeneral_Fisico from '@/assets/...';
-// import imgSwitchGeneral_Protegido from '@/assets/...';
-// import imgTorretaArriba_Fisico from '@/assets/...';
-// import imgTorretaArriba_Protegido from '@/assets/...';
-// import imgBotonerasBarometrosInf_Fisico from '@/assets/...';
-// import imgBotonerasBarometrosInf_Protegido from '@/assets/...';
-// import imgTableroGeneralM6_Fisico from '@/assets/...';
-// import imgTableroGeneralM6_Protegido from '@/assets/...';
-// import imgMangueraPresionRodillo_Fisico from '@/assets/...';
-// import imgMangueraPresionRodillo_Protegido from '@/assets/...';
-// import imgConectoresSupLuzAire_Fisico from '@/assets/...';
-// import imgConectoresSupLuzAire_Protegido from '@/assets/...';
-
-// ==========================================
-// DATOS MOCK: MONDINI 6
-// ==========================================
-
-const m6Sec1Data = [
-  {
-    raw: '-Medidor de aire',
-    tech: 'Manómetro Neumático (Principal)',
-    desc: 'Cubrir carátula para evitar condensación interna.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Chumaseras 2',
-    tech: 'Chumaceras Expuestas (2)',
-    desc: 'No aplicar chorro directo sobre los sellos.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Sensor de entrada',
-    tech: 'Sensor Fotoeléctrico de Entrada',
-    desc: 'Aislar cuerpo y conector trasero.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Botonera',
-    tech: 'Estación de Botones Principal',
-    desc: 'Funda plástica asegurada para cuidar empaques.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Selector',
-    tech: 'Selector Rotativo',
-    desc: 'Sellar completamente con cincho.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Motor',
-    tech: 'Motor de Accionamiento',
-    desc: 'Aislar caja de bornes con bolsa plástica gruesa.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Botón de paro',
-    tech: 'Paro de Emergencia (E-Stop)',
-    desc: 'Riesgo eléctrico. Sellar herméticamente.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Conectores electricos debajo jaula',
-    tech: 'Conectores Eléctricos Inferiores',
-    desc: 'Aislamiento total en base de jaula.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: 'Mangueras azules de aire',
-    tech: 'Líneas Neumáticas (Azules)',
-    desc: 'Cuidar racores rápidos de la presión directa.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Sensor de la jaula 3',
-    tech: 'Sensores de Enclavamiento (3)',
-    desc: 'Uso obligatorio de fundas individuales.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Mangueras de jarabera',
-    tech: 'Líneas de Dosificación',
-    desc: 'Sellar uniones para evitar filtraciones capilares.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Tablero del jarabe',
-    tech: 'Panel de Dosificación',
-    desc: 'Lona o bolsa extensa sellando la puerta entera.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Torreta de tablero jarabe',
-    tech: 'Baliza Luminosa (Jarabera)',
-    desc: 'Cubrir de base a cúpula con bolsa plástica.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Botonera tablero jarabera',
-    tech: 'Botonera de Dosificación',
-    desc: 'Evitar ingreso de agua en selectores.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Caja electrica del tablero',
-    tech: 'Gabinete de Distribución',
-    desc: 'Verificar hermeticidad de bordes.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Medidor de aire',
-    tech: 'Manómetro Secundario',
-    desc: 'Cubrir indicador de presión de aire.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '-Cableado de caja jarabera dos lados',
-    tech: 'Canalización Bilateral (Jarabera)',
-    desc: 'Sellar entrada de arneses en ambos costados.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- 4 Motores debajo tablero',
-    tech: 'Motores Inferiores Jarabera (4)',
-    desc: 'Aislamiento en bolsa a los 4 equipos inferiores.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-];
-
-const m6Sec2Data = [
-  {
-    raw: '-Motor de banda dentada',
-    tech: 'Servomotor de Banda Dentada',
-    desc: 'Proteger encóder y terminales expuestas.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Caja de Cableado motor',
-    tech: 'Caja de Conexiones del Motor',
-    desc: 'Sellar tapa de empalmes eléctricos.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Barómetro de presión vacío',
-    tech: 'Vacuómetro (Medidor de Vacío)',
-    desc: 'Aislar carátula de cristal y tubería base.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Conectores inferiores corriente/vacio',
-    tech: 'Múltiple de Suministro Inferior',
-    desc: 'Riesgo alto. Lona gruesa y sellado de nudo.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- interlook de jaula entrada',
-    tech: 'Interlock de Seguridad (Entrada)',
-    desc: 'Prevenir entrada de agua en ranura de pestillo.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- senor magnetico de jaula 4',
-    tech: 'Sensores Magnéticos de Jaula (4)',
-    desc: 'Bolsas pequeñas individuales para los 4 sensores.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Sensores de entrada amarillos 2',
-    tech: 'Sensores Fotoeléctricos Amarillos (2)',
-    desc: 'Cuidar lente para evitar opacidad.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- sensor de entraba arriba',
-    tech: 'Sensor Superior de Entrada',
-    desc: 'Evitar chorros de agua ascendentes directos.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Sensores de rodillos',
-    tech: 'Sensores Inductivos (Rodillos)',
-    desc: 'Sellar cuerpo y base del cable en arnés.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- botoneras 2 arriba de jaula',
-    tech: 'Estaciones de Botones Aéreas (2)',
-    desc: 'Aislamiento total de botoneras superiores.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Conector sensor inf/arriba amarillo',
-    tech: 'Conector de Sensor Amarillo (Extremos)',
-    desc: 'Aislar terminal del cable amariilo.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Conectores inf Cableado botoneras',
-    tech: 'Cajas de Empalme Inferiores',
-    desc: 'Cerrar puntos de unión eléctrica.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Conectores sensores y seguros mag.',
-    tech: 'Arneses de Sensores y Magnéticos',
-    desc: 'Evitar filtración capilar desde el cable al sensor.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Botones al lado botoneras arriba',
-    tech: 'Botoneras Auxiliares Superiores',
-    desc: 'Protección para botonera lateral aérea.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- switch genral',
-    tech: 'Interruptor General (Main Switch)',
-    desc: 'Elemento Crítico LOTO. Aislar panel de switch completo.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- torreta de arriba',
-    tech: 'Baliza Luminosa Principal (Superior)',
-    desc: 'No lanzar agua hacia la cúpula, aislar base.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- botoneras y Barómetros inf.',
-    tech: 'Interfaz y Neumática de Tablero Inferior',
-    desc: 'Cobertura extensa que abarque pantalla y relojes.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- tablero general de mundini 6',
-    tech: 'Gabinete de Control Principal (Mondini 6)',
-    desc: 'Cobertura con lona plástica extensa a la medida.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- manguera presión de aire rodillo',
-    tech: 'Línea Neumática de Rodillo',
-    desc: 'Asegurar racor rápido neumático.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-  {
-    raw: '- Conectores superiores luz y aire',
-    tech: 'Acometidas Superiores (Eléctrica/Neumática)',
-    desc: 'Bajar empaques en conectores suspendidos.',
-    images: [
-      { src: null, label: 'Físico' },
-      { src: null, label: 'Aislamiento' },
-    ],
-  },
-];
-
-const allComponents = [
-  ...m6Sec1Data.map((item) => ({ section: 'Sección 1', ...item })),
-  ...m6Sec2Data.map((item) => ({ section: 'Sección 2', ...item })),
-];
+// Importa los datos de Mondini 6
+import { m6Sec1Data, m6Sec2Data, m6Sec3Data } from './mondini6Data';
 
 const SECTIONS = [
-  { id: 'intro', text: 'Propósito del Protocolo' },
+  { id: 'intro', text: 'Documento Normativo' },
   { id: 'tabla', text: 'Inventario Completo' },
   { id: 'sec1', text: 'Sección 1 (Entrada)' },
-  { id: 'sec2', text: 'Sección 2 (Sellado)' },
+  { id: 'sec2', text: 'Sección 2 (Jarabe)' },
+  { id: 'sec3', text: 'Sección 3 (Sellado)' },
 ];
 
 // ==========================================
-// COMPONENTES UI PERSONALIZADOS
+// COMPONENTES UI CLOUDSCAPE
 // ==========================================
-
 const SectionTitle = ({
   title,
   subtitle,
@@ -479,31 +49,32 @@ const SectionTitle = ({
   isDark: boolean;
 }) => (
   <div
+    className="section-title-container"
     style={{
-      marginBottom: '32px',
       borderBottom: `2px solid ${isDark ? '#414d5c' : '#eaeded'}`,
+      marginBottom: '24px',
       paddingBottom: '16px',
     }}
   >
     <h2
+      className="section-title"
       style={{
-        fontSize: '38px',
         fontWeight: '900',
         color: isDark ? '#ffffff' : '#16191f',
-        margin: '0 0 12px 0',
         letterSpacing: '-0.5px',
-        fontFamily: '"Amazon Ember Display", "Helvetica Neue", sans-serif',
+        fontSize: '24px',
+        margin: 0,
       }}
     >
       {title}
     </h2>
     {subtitle && (
       <p
+        className="section-subtitle"
         style={{
-          fontSize: '18px',
           color: isDark ? '#aab7b8' : '#545b64',
-          margin: 0,
-          lineHeight: '1.5',
+          marginTop: '8px',
+          fontSize: '14px',
         }}
       >
         {subtitle}
@@ -512,57 +83,69 @@ const SectionTitle = ({
   </div>
 );
 
+// Carrusel integrado y blindado contra nulos
 const CardCarousel = ({
   images,
   isDark,
+  onExpand,
 }: {
-  images: { src: string | null; label: string }[];
+  images?: { src: string | null; label: string }[];
   isDark: boolean;
+  onExpand: (imgSrc: string) => void;
 }) => {
+  const validImages =
+    Array.isArray(images) && images.length > 0
+      ? images
+      : [{ src: null, label: 'Sin evidencia' }];
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
+    if (validImages.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % images.length);
+      setCurrentIndex((prev) => (prev + 1) % validImages.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [images.length]);
+  }, [validImages.length]);
 
   const nextSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev + 1) % images.length);
+    setCurrentIndex((prev) => (prev + 1) % validImages.length);
   };
 
   const prevSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentIndex(
+      (prev) => (prev - 1 + validImages.length) % validImages.length,
+    );
   };
 
-  const currentImage = images[currentIndex];
+  const currentImage = validImages[currentIndex];
 
   return (
     <div
       style={{
         position: 'relative',
         width: '100%',
-        height: '200px',
+        height: '240px',
         backgroundColor: isDark ? '#232f3e' : '#f8f8f8',
         overflow: 'hidden',
         borderBottom: `1px solid ${isDark ? '#414d5c' : '#eaeded'}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        borderRadius: '8px 8px 0 0',
       }}
     >
       {currentImage.src ? (
         <img
           key={currentIndex}
           src={currentImage.src}
+          className="slow-transition-fade"
           style={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
-            animation: 'fadeIn 0.5s',
+            objectFit: 'contain',
+            padding: '8px',
           }}
           alt={currentImage.label}
         />
@@ -579,11 +162,7 @@ const CardCarousel = ({
             variant={isDark ? 'subtle' : 'normal'}
           />
           <span
-            style={{
-              fontSize: '13px',
-              color: isDark ? '#687078' : '#879596',
-              animation: 'fadeIn 0.5s',
-            }}
+            style={{ fontSize: '13px', color: isDark ? '#687078' : '#879596' }}
           >
             Añadir Foto ({currentImage.label})
           </span>
@@ -593,86 +172,187 @@ const CardCarousel = ({
       <div
         style={{
           position: 'absolute',
-          top: '10px',
-          left: '10px',
-          backgroundColor: 'rgba(0,0,0,0.65)',
+          top: '16px',
+          left: '16px',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           color: '#fff',
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '11px',
+          padding: '6px 14px',
+          borderRadius: '6px',
+          fontSize: '12px',
           fontWeight: 'bold',
-          letterSpacing: '0.5px',
-          backdropFilter: 'blur(2px)',
         }}
       >
         {currentImage.label}
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '10px',
-          right: '10px',
-          display: 'flex',
-          gap: '4px',
-          backgroundColor: isDark
-            ? 'rgba(22, 25, 31, 0.8)'
-            : 'rgba(255, 255, 255, 0.9)',
-          padding: '4px 8px',
-          borderRadius: '16px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-        }}
-      >
+      {currentImage.src && (
         <button
-          onClick={prevSlide}
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand(currentImage.src!);
+          }}
+          title="Ver imagen completa"
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: isDark ? '#fff' : '#16191f',
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.4)',
+            padding: '6px 10px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '2px',
+            zIndex: 10,
+            backdropFilter: 'blur(6px)',
           }}
         >
-          <Icon name={'angle-left' as any} size="small" variant="normal" />
+          <Icon
+            name={'zoom-in' as any}
+            size="normal"
+            variant={'inverted' as any}
+          />
         </button>
-        <span
+      )}
+
+      {validImages.length > 1 && (
+        <div
           style={{
-            fontSize: '11px',
-            fontWeight: 'bold',
-            color: isDark ? '#fff' : '#16191f',
+            position: 'absolute',
+            bottom: '16px',
+            right: '16px',
             display: 'flex',
-            alignItems: 'center',
+            gap: '4px',
+            backgroundColor: isDark
+              ? 'rgba(22, 25, 31, 0.8)'
+              : 'rgba(255, 255, 255, 0.9)',
+            padding: '4px 8px',
+            borderRadius: '16px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+            zIndex: 5,
           }}
         >
-          {currentIndex + 1}/{images.length}
-        </span>
-        <button
-          onClick={nextSlide}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: isDark ? '#fff' : '#16191f',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '2px',
-          }}
-        >
-          <Icon name={'angle-right' as any} size="small" variant="normal" />
-        </button>
-      </div>
+          <button
+            onClick={prevSlide}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: isDark ? '#fff' : '#16191f',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '2px',
+            }}
+          >
+            <Icon name={'angle-left' as any} size="small" variant="normal" />
+          </button>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 'bold',
+              color: isDark ? '#fff' : '#16191f',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            {currentIndex + 1}/{validImages.length}
+          </span>
+          <button
+            onClick={nextSlide}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: isDark ? '#fff' : '#16191f',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '2px',
+            }}
+          >
+            <Icon name={'angle-right' as any} size="small" variant="normal" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
+// ==========================================
+// VISTA PRINCIPAL DE DETALLE
+// ==========================================
 export default function Mondini6Details() {
   const context = useContext(AppContent);
-  if (!context) return null;
-  const { isDark } = context;
+  const isDark = context ? context.isDark : false;
 
   const [activeSection, setActiveSection] = useState('intro');
+  const [isExporting, setIsExporting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  const [flashbarItems, setFlashbarItems] = useState<any[]>([
+    {
+      type: 'error',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_loto'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>Normativa LOTO:</strong> Desconecte la energía eléctrica
+          general de la Mondini 6 antes de iniciar lavado.
+        </Box>
+      ),
+      id: 'msg_loto',
+    },
+    {
+      type: 'error',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_1'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>PRECAUCIÓN:</strong> NO dirigir agua a presión sobre
+          componentes eléctricos o neumáticos.
+        </Box>
+      ),
+      id: 'msg_1',
+    },
+    {
+      type: 'error',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_2'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>PRECAUCIÓN:</strong> NO aplicar químicos directamente sobre
+          sensores o sellos.
+        </Box>
+      ),
+      id: 'msg_2',
+    },
+    {
+      type: 'warning',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_3'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>PRECAUCIÓN:</strong> NO remover protecciones durante lavado.
+        </Box>
+      ),
+      id: 'msg_3',
+    },
+    {
+      type: 'warning',
+      dismissible: true,
+      onDismiss: () => handleDismiss('msg_4'),
+      content: (
+        <Box fontSize="body-s">
+          <strong>PRECAUCIÓN:</strong> NO impactar sellos, chumaceras o
+          conexiones con alta presión.
+        </Box>
+      ),
+      id: 'msg_4',
+    },
+  ]);
+
+  const handleDismiss = (idToRemove: string) => {
+    setFlashbarItems((items) => items.filter((item) => item.id !== idToRemove));
+  };
 
   const colors = {
     bgPage: isDark ? '#0f1b2a' : '#ffffff',
@@ -681,39 +361,515 @@ export default function Mondini6Details() {
     textSecondary: isDark ? '#aab7b8' : '#545b64',
     border: isDark ? '#414d5c' : '#eaeded',
     activeLink: '#0972d3',
+    fabBg: isDark ? '#ffffff' : '#16191f',
+    fabIcon: isDark ? '#16191f' : '#ffffff',
   };
 
   useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `@keyframes fadeIn { from { opacity: 0.4; } to { opacity: 1; } }`;
-    document.head.appendChild(style);
-
     const handleScroll = () => {
-      const scrollPosition = window.scrollY + 250;
-      let currentSection = SECTIONS[0].id;
+      const scrollPosition = window.scrollY + 300;
+      let currentSection = SECTIONS[0]?.id || 'intro';
       for (const section of SECTIONS) {
         const element = document.getElementById(section.id);
-        if (element && element.offsetTop <= scrollPosition) {
+        if (element && element.offsetTop <= scrollPosition)
           currentSection = section.id;
-        }
       }
       setActiveSection(currentSection);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      document.head.removeChild(style);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToSection = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
     if (element) {
-      const offset = 180;
-      const elementPosition =
-        element.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+      window.scrollTo({
+        top: element.getBoundingClientRect().top + window.scrollY - 100,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // ==========================================
+  // GENERADOR DE PDF CORPORATIVO (TEMPLATE AWS - MONDINI 6)
+  // ==========================================
+  const getLogoData = async (
+    url: string,
+  ): Promise<{ data: string; width: number; height: number } | null> => {
+    try {
+      const response = await fetch(url);
+      let svgText = await response.text();
+
+      if (svgText.includes('<svg')) {
+        svgText = svgText.replace(/currentColor/g, '#0972D3');
+        svgText = svgText.replace(/var\(--[a-zA-Z0-9-]+\)/g, '#0972D3');
+
+        const svgBlob = new Blob([svgText], {
+          type: 'image/svg+xml;charset=utf-8',
+        });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width || 300;
+            canvas.height = img.height || 100;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              resolve({
+                data: canvas.toDataURL('image/png'),
+                width: canvas.width,
+                height: canvas.height,
+              });
+            } else resolve(null);
+            URL.revokeObjectURL(svgUrl);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(svgUrl);
+            resolve(null);
+          };
+          img.src = svgUrl;
+        });
+      }
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            resolve({
+              data: canvas.toDataURL('image/png'),
+              width: canvas.width,
+              height: canvas.height,
+            });
+          } else resolve(null);
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+
+    try {
+      const doc = new jsPDF('p', 'pt', 'letter');
+      const margin = 40;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const contentWidth = pageWidth - margin * 2;
+      const colWidth = (contentWidth - 20) / 2;
+
+      const safeTopMargin = 90;
+      const safeBottomMargin = 90;
+
+      const safeText = (
+        text: string,
+        x: number,
+        y: number,
+        align: 'left' | 'right' | 'center' = 'left',
+      ) => {
+        const validText = text ? String(text) : '';
+        if (isNaN(x) || isNaN(y)) return;
+        if (align === 'right') {
+          const w = doc.getTextWidth(validText);
+          doc.text(validText, x - w, y);
+        } else if (align === 'center') {
+          const w = doc.getTextWidth(validText);
+          doc.text(validText, x - w / 2, y);
+        } else {
+          doc.text(validText, x, y);
+        }
+      };
+
+      const logoData = await getLogoData(logoSistema);
+
+      // --- HEADER GLOBAL MONDINI 6 ---
+      const drawAWSHeader = () => {
+        if (logoData) {
+          // RESTAURACIÓN AL TAMAÑO ORIGINAL Y CORPORATIVO (160x45)
+          const maxLogoW = 160;
+          const maxLogoH = 45;
+          const ratio = logoData.width / logoData.height;
+          let w = maxLogoW;
+          let h = w / ratio;
+          if (h > maxLogoH) {
+            h = maxLogoH;
+            w = h * ratio;
+          }
+          doc.addImage(logoData.data, 'PNG', margin, 25, w, h);
+        } else {
+          doc.setFontSize(24);
+          doc.setFont('helvetica', 'bold');
+          safeText('QuickFind', margin, 50);
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(0, 0, 0);
+        safeText(
+          'Catálogo de Puntos Críticos Durante',
+          pageWidth - margin,
+          40,
+          'right',
+        );
+        safeText(
+          'Lavado de Equipos (Mondini 6)',
+          pageWidth - margin,
+          55,
+          'right',
+        );
+
+        doc.setLineWidth(1.5);
+        doc.setDrawColor(0, 0, 0);
+        doc.line(margin, 75, pageWidth - margin, 75);
+      };
+
+      // --- FOOTER GLOBAL MONDINI 6 ---
+      const drawAWSFooter = () => {
+        const startY = pageHeight - 60;
+        doc.setLineWidth(1);
+        doc.setDrawColor(0, 0, 0);
+        doc.line(margin, startY, pageWidth - margin, startY);
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        safeText(
+          'Este documento es una representación impresa para control de sanidad',
+          pageWidth / 2,
+          startY + 12,
+          'center',
+        );
+
+        doc.setFont('helvetica', 'bold');
+        safeText(
+          'QUICKFIND SYSTEM - MONDINI 6',
+          pageWidth / 2,
+          startY + 22,
+          'center',
+        );
+
+        doc.setFont('helvetica', 'normal');
+        safeText(
+          'Planta Congelados - Área de Mondinis',
+          pageWidth / 2,
+          startY + 32,
+          'center',
+        );
+      };
+
+      // ==========================================
+      // HOJA 1: DATOS GENERALES
+      // ==========================================
+      let currentY = safeTopMargin + 20;
+
+      const col2X = margin + colWidth + 20;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('DATOS DEL EQUIPO', margin, currentY);
+      safeText('DATOS DE EMISIÓN', col2X, currentY);
+
+      currentY += 6;
+      doc.setLineWidth(1);
+      doc.line(margin, currentY, margin + colWidth, currentY);
+      doc.line(col2X, currentY, pageWidth - margin, currentY);
+
+      currentY += 15;
+      doc.setFontSize(7.5);
+
+      const drawRow = (
+        y: number,
+        k1: string,
+        v1: string,
+        k2: string,
+        v2: string,
+      ) => {
+        doc.setFont('helvetica', 'bold');
+        safeText(k1, margin, y);
+        safeText(k2, col2X, y);
+        doc.setFont('helvetica', 'normal');
+        safeText(v1, margin + colWidth, y, 'right');
+        safeText(v2, pageWidth - margin, y, 'right');
+      };
+
+      drawRow(
+        currentY,
+        'Planta',
+        'Congelados',
+        'Realizado por',
+        'Mantenimiento',
+      );
+      currentY += 14;
+      drawRow(currentY, 'Área', 'Mondinis', 'Dirigido a', 'Sanidad');
+      currentY += 14;
+      drawRow(
+        currentY,
+        'Equipo',
+        'Mondini #6',
+        'Fecha y hora de emisión',
+        new Date().toLocaleString(),
+      );
+
+      currentY += 10;
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 25;
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(1.2);
+      const boxHeight = 85;
+
+      doc.rect(margin, currentY, colWidth, boxHeight);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('Propósito', margin + 8, currentY + 16);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      const propText = doc.splitTextToSize(
+        'Establecer los puntos críticos de protección durante las actividades de lavado sanitario en los equipos de proceso, con el fin de prevenir daños en componentes mecánicos, neumáticos y eléctricos sensibles al agua o químicos de limpieza, asegurando la integridad del equipo y la continuidad operativa.',
+        colWidth - 16,
+      );
+      doc.text(propText, margin + 8, currentY + 30);
+
+      doc.rect(col2X, currentY, colWidth, boxHeight);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('Alcance', col2X + 8, currentY + 16);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      const alcText = doc.splitTextToSize(
+        'Este catálogo aplica al personal de Sanidad involucrado en actividades de limpieza de equipos en planta 2, incluyendo la identificación, protección y verificación de componentes críticos antes, durante y después del lavado. La instrucción aplica para todos los componentes.',
+        colWidth - 16,
+      );
+      doc.text(alcText, col2X + 8, currentY + 30);
+
+      currentY += boxHeight + 25;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      safeText('DETALLE DE PRECAUCIONES', margin, currentY);
+      currentY += 8;
+
+      doc.setLineWidth(1);
+      const preBoxH = 80;
+      doc.rect(margin, currentY, contentWidth, preBoxH);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+
+      // SANITIZACIÓN: Solo texto plano sin emojis para garantizar renderizado perfecto
+      const preText = doc.splitTextToSize(
+        'NOTA DE SEGURIDAD\n\nEl lavado inadecuado de componentes críticos puede ocasionar fallas en el equipo y generar condiciones inseguras. Es obligatorio seguir las instrucciones de protección establecidas en este catálogo:\n\nX NO dirigir agua a presión sobre componentes eléctricos o neumáticos.\nX NO remover protecciones durante lavado.\nX NO aplicar químicos directamente sobre sensores o sellos.',
+        contentWidth - 16,
+      );
+      doc.text(preText, margin + 8, currentY + 16);
+
+      // ==========================================
+      // HOJA 2: LISTADO DE COMPONENTES TEXTO
+      // ==========================================
+      doc.addPage();
+      currentY = safeTopMargin + 10;
+
+      const drawTextTable = (title: string, data: any[]) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        safeText(title, margin, currentY);
+
+        const tableOptions: any = {
+          startY: currentY + 6,
+          head: [['No', 'Componente', 'Instrucción']],
+          body: data.map((item, i) => [
+            String(i + 1),
+            `${item.name || item.tech || '---'}${item.raw ? `\nFísico: ${item.raw}` : ''}`,
+            String(item.desc || ''),
+          ]),
+          theme: 'grid',
+          headStyles: {
+            fillColor: 255,
+            textColor: 0,
+            fontStyle: 'bold',
+            lineWidth: 1,
+            lineColor: 0,
+          },
+          styles: {
+            fontSize: 7.5,
+            textColor: 0,
+            cellPadding: 5,
+            lineWidth: 1,
+            lineColor: 0,
+          },
+          columnStyles: {
+            0: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+            1: { cellWidth: 160 },
+            2: { cellWidth: 'auto' },
+          },
+          margin: {
+            top: safeTopMargin,
+            bottom: safeBottomMargin,
+            left: margin,
+            right: margin,
+          },
+          rowPageBreak: 'avoid',
+        };
+
+        autoTable(doc, tableOptions);
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+      };
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      safeText('LISTADO DE COMPONENTES', margin, currentY);
+      currentY += 15;
+
+      drawTextTable('SECCIÓN 1: ENTRADA', m6Sec1Data);
+      drawTextTable('SECCIÓN 2: INYECCIÓN DE JARABE', m6Sec2Data);
+      drawTextTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m6Sec3Data);
+
+      // ==========================================
+      // HOJA 3+: EVIDENCIA VISUAL
+      // ==========================================
+      doc.addPage();
+      currentY = safeTopMargin + 10;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      safeText('EVIDENCIA VISUAL DE AISLAMIENTO', margin, currentY);
+      currentY += 15;
+
+      const drawVisualTable = (title: string, data: any[]) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        safeText(title, margin, currentY);
+
+        const visTableOptions: any = {
+          startY: currentY + 6,
+          head: [['Componente', 'Evidencia Física']],
+          body: data.map((item) => [String(item.name || item.tech || ''), '']),
+          theme: 'grid',
+          headStyles: {
+            fillColor: 255,
+            textColor: 0,
+            fontStyle: 'bold',
+            lineWidth: 1,
+            lineColor: 0,
+          },
+          bodyStyles: { minCellHeight: 100 },
+          styles: {
+            fontSize: 7.5,
+            textColor: 0,
+            cellPadding: 6,
+            valign: 'middle',
+            lineColor: 0,
+            lineWidth: 1,
+          },
+          columnStyles: {
+            0: { cellWidth: 180, fontStyle: 'bold' },
+            1: { cellWidth: 'auto', halign: 'center' },
+          },
+          margin: {
+            top: safeTopMargin,
+            bottom: safeBottomMargin,
+            left: margin,
+            right: margin,
+          },
+          rowPageBreak: 'avoid',
+          didDrawCell: function (dataHook: any) {
+            if (dataHook.section === 'body' && dataHook.column.index === 1) {
+              const rowIndex = dataHook.row.index;
+
+              const imgSrc =
+                data[rowIndex].image?.src ||
+                (data[rowIndex].images && data[rowIndex].images[0]?.src);
+
+              if (dataHook.cell && imgSrc) {
+                try {
+                  const imgProps = doc.getImageProperties(imgSrc);
+                  const imgRatio = imgProps.width / imgProps.height;
+
+                  const maxW = dataHook.cell.width - 8;
+                  const maxH = dataHook.cell.height - 8;
+                  const cellRatio = maxW / maxH;
+
+                  let finalW = maxW;
+                  let finalH = maxH;
+
+                  if (imgRatio > cellRatio) {
+                    finalH = maxW / imgRatio;
+                  } else {
+                    finalW = maxH * imgRatio;
+                  }
+
+                  const xOffset = dataHook.cell.x + 4 + (maxW - finalW) / 2;
+                  const yOffset = dataHook.cell.y + 4 + (maxH - finalH) / 2;
+
+                  doc.addImage(
+                    imgSrc,
+                    'JPEG',
+                    xOffset,
+                    yOffset,
+                    finalW,
+                    finalH,
+                    undefined,
+                    'FAST',
+                  );
+                } catch (e) {
+                  // Fallback
+                }
+              } else if (dataHook.cell) {
+                doc.setFontSize(7.5);
+                doc.setTextColor(150, 150, 150);
+                const txt = 'Fotografía no disponible';
+                const w = doc.getTextWidth(txt);
+                doc.text(
+                  txt,
+                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
+                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
+                );
+                doc.setTextColor(0, 0, 0);
+              }
+            }
+          },
+        };
+        autoTable(doc, visTableOptions);
+        return (doc as any).lastAutoTable.finalY + 15;
+      };
+
+      currentY = drawVisualTable('SECCIÓN 1: ENTRADA', m6Sec1Data);
+
+      doc.addPage();
+      currentY = safeTopMargin + 10;
+      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', m6Sec2Data);
+
+      doc.addPage();
+      currentY = safeTopMargin + 10;
+      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m6Sec3Data);
+
+      // Inyección Global de Headers y Footers
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        drawAWSHeader();
+        drawAWSFooter();
+      }
+
+      doc.save('Mondini6_Plan_Lavado.pdf');
+    } catch (error) {
+      console.error('Error crítico al generar PDF: ', error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -721,29 +877,52 @@ export default function Mondini6Details() {
     <Cards
       cardsPerRow={[
         { cards: 1 },
-        { minWidth: 600, cards: 2 },
-        { minWidth: 900, cards: 3 },
+        { minWidth: 700, cards: 2 },
+        { minWidth: 1100, cards: 3 },
       ]}
       cardDefinition={{
         header: (item) => (
-          <div style={{ fontSize: '16px', fontWeight: '800' }}>{item.tech}</div>
+          <div
+            className="card-title"
+            style={{
+              fontSize: '17px',
+              fontWeight: '900',
+              color: colors.activeLink,
+            }}
+          >
+            {item.name || item.tech}
+          </div>
         ),
         sections: [
           {
             id: 'carousel',
             content: (item) => (
-              <CardCarousel images={item.images} isDark={isDark} />
+              <CardCarousel
+                images={
+                  item.images
+                    ? item.images
+                    : [
+                        {
+                          src: item.image?.src || null,
+                          label: item.image?.label || 'Componente',
+                        },
+                      ]
+                }
+                isDark={isDark}
+                onExpand={setSelectedImage}
+              />
             ),
           },
           {
             id: 'desc',
             content: (item) => (
               <span
+                className="card-desc"
                 style={{
                   fontSize: '14px',
-                  lineHeight: '1.4',
                   display: 'block',
-                  marginTop: '4px',
+                  marginTop: '12px',
+                  fontWeight: '500',
                 }}
               >
                 {item.desc}
@@ -752,17 +931,20 @@ export default function Mondini6Details() {
           },
           {
             id: 'raw',
-            content: (item) => (
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#879596',
-                  fontFamily: 'monospace',
-                }}
-              >
-                Físico: {item.raw}
-              </span>
-            ),
+            content: (item) =>
+              item.raw ? (
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: '#879596',
+                    fontFamily: 'monospace',
+                    display: 'block',
+                    marginTop: '8px',
+                  }}
+                >
+                  Físico: {item.raw}
+                </span>
+              ) : null,
           },
         ],
       }}
@@ -776,11 +958,210 @@ export default function Mondini6Details() {
         minHeight: '100vh',
         backgroundColor: colors.bgPage,
         color: colors.textMain,
-        fontFamily:
-          '"Amazon Ember", "Helvetica Neue", Roboto, Arial, sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        overflowX: 'clip',
+        width: '100%',
+        maxWidth: '100%',
       }}
     >
-      {/* 1. TOP NAVIGATION */}
+      <style>{`
+        *, *::before, *::after { box-sizing: border-box; }
+        @keyframes slowFadeIn { 0% { opacity: 0; filter: blur(4px); transform: scale(0.98); } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
+        .slow-transition-fade { animation: slowFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        .flex-container { display: flex; flex-direction: row; max-width: 1400px; margin: 0 auto; padding: 60px 40px; gap: 60px; align-items: stretch; flex-grow: 1; width: 100%; box-sizing: border-box; }
+        .flex-content { flex: 1 1 0%; min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+        .flex-sidebar { width: 280px; flex-shrink: 0; border-left: 1px solid ${colors.border}; padding-left: 40px; }
+        .sticky-nav-inner { position: sticky; top: 120px; height: calc(100vh - 140px); overflow-y: auto; }
+        .section-wrap { margin-bottom: 120px; width: 100%; }
+        .hero-title { font-size: 40px !important; line-height: 1.3 !important; margin-bottom: 20px !important; }
+        .hero-header-wrap { padding: 40px 40px 60px 40px; position: relative; }
+        
+        .mobile-fab { display: none !important; }
+        
+        .mobile-menu-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 15, 20, 0.95); backdrop-filter: blur(16px); z-index: 10005; display: flex; flex-direction: column; padding: 50px 30px; opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .mobile-menu-overlay.open { opacity: 1; pointer-events: auto; }
+        .close-menu-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff !important; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .close-menu-btn:hover { background: rgba(255, 255, 255, 0.25); transform: rotate(90deg); }
+        .mobile-menu-item { opacity: 0; transform: translateY(-20px); transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .mobile-menu-overlay.open .mobile-menu-item { opacity: 1; transform: translateY(0); }
+        .mobile-link { transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.3s ease; display: block; padding: 12px 0; }
+        .mobile-link:hover { transform: translateX(12px); color: #ffffff !important; }
+
+        @media screen and (max-width: 1080px) {
+          .flex-sidebar { display: none !important; }
+          .flex-container { padding: 30px 15px; flex-direction: column; gap: 0; overflow-x: hidden; }
+          .section-wrap { margin-bottom: 80px; }
+          .hero-header-wrap { padding: 30px 20px 40px 20px !important; }
+          .hero-title { font-size: 28px !important; line-height: 1.4 !important; margin-bottom: 12px !important; display: block !important; }
+          .section-title-container { margin-bottom: 30px !important; padding-bottom: 15px !important; }
+          .section-title { font-size: 24px !important; line-height: 1.4 !important; margin-bottom: 8px !important; display: block !important; }
+          .mobile-fab { display: flex !important; position: fixed !important; bottom: 80px !important; right: 24px !important; width: 52px !important; height: 52px !important; border-radius: 50% !important; background-color: ${colors.fabBg} !important; color: ${colors.fabIcon} !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; z-index: 99999 !important; cursor: pointer !important; align-items: center !important; justify-content: center !important; border: 1px solid rgba(128,128,128,0.2) !important; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s !important; }
+          .mobile-fab.hidden { transform: scale(0) !important; opacity: 0 !important; pointer-events: none !important; }
+        }
+        .text-normal { font-size: 15px; line-height: 1.6; color: ${colors.textMain}; }
+      `}</style>
+
+      {/* Menú Móvil */}
+      <div className={`mobile-menu-overlay ${showMobileMenu ? 'open' : ''}`}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '50px',
+          }}
+        >
+          <h2
+            style={{
+              color: '#ffffff',
+              margin: 0,
+              fontSize: '26px',
+              fontWeight: '900',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            Menú Rápido
+          </h2>
+          <button
+            className="close-menu-btn"
+            onClick={() => setShowMobileMenu(false)}
+            aria-label="Cerrar menú"
+          >
+            <Icon
+              name={'close' as any}
+              size="normal"
+              variant={'inherit' as any}
+            />
+          </button>
+        </div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, flexGrow: 1 }}>
+          {SECTIONS.map((section) => (
+            <li
+              key={`mob-${section.id}`}
+              className="mobile-menu-item"
+              style={{ marginBottom: '16px' }}
+            >
+              <a
+                href={`#${section.id}`}
+                className="mobile-link"
+                onClick={(e) => {
+                  scrollToSection(e, section.id);
+                  setShowMobileMenu(false);
+                }}
+                style={{
+                  color: activeSection === section.id ? '#44b9d6' : '#aab7b8',
+                  fontSize: '22px',
+                  textDecoration: 'none',
+                  fontWeight: activeSection === section.id ? '900' : '500',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
+                {section.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+        <div
+          className="mobile-menu-item"
+          style={{
+            marginTop: 'auto',
+            paddingBottom: '30px',
+            transitionDelay: '0.4s',
+          }}
+        >
+          <Button
+            iconName={'status-warning' as any}
+            variant={'primary' as any}
+            fullWidth
+          >
+            Levantar Ticket de Falla
+          </Button>
+        </div>
+      </div>
+
+      <button
+        className={`mobile-fab ${showMobileMenu ? 'hidden' : ''}`}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowMobileMenu(true);
+        }}
+      >
+        <svg
+          style={{ pointerEvents: 'none' }}
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+
+      {/* Lightbox */}
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100000,
+            backgroundColor: 'rgba(10,15,20,0.95)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <button
+            style={{
+              position: 'absolute',
+              top: '25px',
+              right: '25px',
+              background: 'rgba(255,255,255,0.15)',
+              border: '2px solid rgba(255,255,255,0.4)',
+              borderRadius: '50%',
+              width: '56px',
+              height: '56px',
+              color: 'white',
+              cursor: 'pointer',
+              zIndex: 10001,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <Icon
+              name={'close' as any}
+              size="large"
+              variant={'inherit' as any}
+            />
+          </button>
+          <img
+            src={selectedImage}
+            alt="Expandida"
+            style={{
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              borderRadius: '20px',
+              objectFit: 'contain',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+              animation: 'slowFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Nav Superior */}
       <div style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}>
         <TopNavigation
           identity={{ href: '/cleaning-plan', title: 'Atrás: Menú Principal' }}
@@ -788,272 +1169,595 @@ export default function Mondini6Details() {
         />
       </div>
 
-      {/* 2. HEADER */}
       <div style={{ backgroundColor: colors.bgHeader, width: '100%' }}>
-        <div
-          style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}
-        >
-          <div style={{ paddingTop: '20px' }}>
-            <Flashbar
-              items={[
-                {
-                  type: 'warning',
-                  dismissible: true,
-                  content: (
-                    <Box fontSize="body-s">
-                      <strong>Normativa LOTO Crítica:</strong> Desconecte el
-                      Interruptor General (Main Switch) de la Mondini 6 previo
-                      al saneamiento.
-                    </Box>
-                  ),
-                  id: 'msg_loto',
-                },
-              ]}
-            />
-          </div>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          {/* NOTIFICACIONES */}
+          {flashbarItems.length > 0 && (
+            <div style={{ padding: '24px 40px 0 40px' }}>
+              <Flashbar items={flashbarItems as any} stackItems={true} />
+            </div>
+          )}
 
-          <div style={{ padding: '30px 0 50px 0', color: '#ffffff' }}>
+          <div className="hero-header-wrap" style={{ color: '#ffffff' }}>
             <nav
               aria-label="Breadcrumb"
-              style={{ marginBottom: '16px', fontSize: '14px' }}
+              style={{ marginBottom: '24px', fontSize: '15px' }}
             >
               <span style={{ color: '#879596' }}>Plan de Limpieza</span>{' '}
-              <span style={{ margin: '0 8px', color: '#879596' }}>/</span>{' '}
-              <span style={{ color: '#fbfbfb' }}>Línea Mondini 6</span>
+              <span style={{ margin: '0 12px', color: '#879596' }}>/</span>{' '}
+              <span style={{ color: '#fbfbfb', fontWeight: 'bold' }}>
+                Línea Mondini 6
+              </span>
             </nav>
 
             <Grid
               gridDefinition={[
-                { colspan: { default: 12, s: 8 } },
-                { colspan: { default: 12, s: 4 } },
+                { colspan: { default: 12, l: 9 } },
+                { colspan: { default: 12, l: 3 } },
               ]}
             >
               <div>
                 <h1
+                  className="hero-title"
                   style={{
-                    fontSize: '40px',
                     fontWeight: '900',
-                    margin: '0 0 16px 0',
                     color: '#ffffff',
-                    letterSpacing: '-0.5px',
+                    textTransform: 'uppercase',
                   }}
                 >
-                  Inventario de Protección: Mondini 6
+                  Catálogo de Puntos Críticos Durante Lavado de Equipos
                 </h1>
-                <p
+
+                <div
                   style={{
-                    fontSize: '18px',
-                    lineHeight: '28px',
-                    color: '#d1d5db',
-                    maxWidth: '800px',
-                    marginBottom: '24px',
+                    marginTop: '30px',
+                    borderTop: '1px solid rgba(255,255,255,0.15)',
+                    paddingTop: '20px',
                   }}
                 >
-                  Catálogo avanzado para la protección electromecánica de la
-                  empacadora de alta capacidad Mondini 6.
-                </p>
+                  <ColumnLayout columns={5} variant="text-grid">
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Planta
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Congelados
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Área
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mondinis
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Equipo
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mondini #6
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Realizado por
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mantenimiento
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          color: '#aab7b8',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        Dirigido a
+                      </div>
+                      <div
+                        style={{
+                          color: '#ffffff',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Sanidad
+                      </div>
+                    </div>
+                  </ColumnLayout>
+                </div>
               </div>
-              <Box float="right">
-                <Button variant="primary">Descargar PDF de Línea 6</Button>
-              </Box>
+
+              <div
+                className="btn-download-wrap"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-end',
+                  paddingTop: '10px',
+                }}
+              >
+                <Button
+                  variant={'primary' as any}
+                  iconName={'download' as any}
+                  loading={isExporting}
+                  onClick={handleExportPDF}
+                >
+                  Descargar PDF
+                </Button>
+              </div>
             </Grid>
           </div>
         </div>
       </div>
 
-      {/* 3. CONTENIDO PRINCIPAL */}
-      <div
-        style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '60px 40px',
-          color: colors.textMain,
-        }}
-      >
-        <Grid
-          gridDefinition={[
-            { colspan: { default: 12, s: 9, m: 10 } },
-            { colspan: { default: 12, s: 3, m: 2 } },
-          ]}
-        >
-          {/* --- COLUMNA IZQUIERDA (CONTENIDO) --- */}
-          <div style={{ paddingRight: '40px' }}>
-            {/* INTRODUCCIÓN */}
-            <div id="intro" style={{ marginBottom: '80px' }}>
-              <SectionTitle
-                title="Propósito de Intervención"
-                subtitle="Aislamiento para equipos de alta capacidad de envasado."
-                isDark={isDark}
-              />
-              <div
-                style={{
-                  fontSize: '18px',
-                  lineHeight: '1.6',
-                  color: colors.textMain,
-                }}
+      <div className="flex-container">
+        <div className="flex-content">
+          <div id="intro" className="section-wrap">
+            <ColumnLayout columns={2} variant="text-grid">
+              <SpaceBetween size="l">
+                <div>
+                  <div
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: colors.textMain,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Propósito
+                  </div>
+                  <p className="text-normal">
+                    Establecer los puntos críticos de protección durante las
+                    actividades de lavado sanitario en los equipos de proceso,
+                    con el fin de prevenir daños en componentes mecánicos,
+                    neumáticos y eléctricos sensibles al agua o químicos de
+                    limpieza, asegurando la integridad del equipo y la
+                    continuidad operativa.
+                  </p>
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: colors.textMain,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Alcance
+                  </div>
+                  <p className="text-normal">
+                    Este catálogo aplica al personal de Sanidad involucrado en
+                    actividades de limpieza de equipos en planta 2, incluyendo
+                    la identificación, protección y verificación de componentes
+                    críticos antes, durante y después del lavado. La instrucción
+                    aplica para todos los componentes equivalentes presentes en
+                    el equipo o línea, aun cuando no se identifiquen
+                    individualmente.
+                  </p>
+                </div>
+              </SpaceBetween>
+
+              <SpaceBetween size="l">
+                <div
+                  style={{
+                    backgroundColor: isDark
+                      ? 'rgba(215, 43, 15, 0.1)'
+                      : '#fdf3f1',
+                    padding: '24px',
+                    borderLeft: '4px solid #d13212',
+                    borderRadius: '0 8px 8px 0',
+                    height: '100%',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: '900',
+                      color: '#d13212',
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <Icon name="status-warning" variant="error" /> Nota de
+                    seguridad
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '15px',
+                      lineHeight: '1.6',
+                      margin: 0,
+                      color: isDark ? '#fbfbfb' : '#16191f',
+                      fontWeight: '500',
+                    }}
+                  >
+                    El lavado inadecuado de componentes críticos puede ocasionar
+                    fallas en el equipo y generar condiciones inseguras. Es
+                    obligatorio seguir las instrucciones de protección
+                    establecidas en este catálogo.
+                  </p>
+                </div>
+              </SpaceBetween>
+            </ColumnLayout>
+          </div>
+
+          <div id="tabla" className="section-wrap">
+            <SectionTitle
+              title="Inventario Completo"
+              subtitle="Checklist tabular para una revisión rápida."
+              isDark={isDark}
+            />
+            <SpaceBetween size="xl">
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 1: Entrada
+                    </span>
+                  </Header>
+                }
               >
-                <p>
-                  El propósito de estas directrices preventivas es erradicar
-                  completamente el riesgo de daño eléctrico o averías mecánicas
-                  durante el proceso de lavado y sanitización. Asegurando cada
-                  uno de los elementos mostrados con bolsas impermeables, lonas
-                  y empaques, garantizamos la integridad del equipo y del
-                  operador.
-                </p>
-                <p style={{ color: colors.textSecondary }}>
-                  La <strong>Mondini 6</strong> es una línea de mayor capacidad
-                  de producción. Su arquitectura incorpora instrumentos
-                  adicionales como medidores de vacío, controles perimetrales
-                  aéreos y un mayor volumen de sensores magnéticos y
-                  fotoeléctricos que deben aislarse estrictamente.
-                </p>
-              </div>
-            </div>
-
-            {/* TABLA RESUMEN COMPLETA */}
-            <div id="tabla" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Inventario Completo"
-                subtitle="Checklist tabular de componentes (Mondini 6)."
-                isDark={isDark}
-              />
-              <Container>
-                <Table
-                  variant="embedded"
-                  columnDefinitions={[
-                    {
-                      id: 'section',
-                      header: 'Ubicación',
-                      cell: (e) => <strong>{e.section}</strong>,
-                      width: 150,
-                    },
-                    {
-                      id: 'tech',
-                      header: 'Componente Técnico',
-                      cell: (e) => e.tech,
-                    },
-                    {
-                      id: 'raw',
-                      header: 'Nombre Físico/Planta',
-                      cell: (e) => (
-                        <span style={{ color: '#879596' }}>{e.raw}</span>
-                      ),
-                    },
-                    {
-                      id: 'desc',
-                      header: 'Instrucción de Aislamiento',
-                      cell: (e) => e.desc,
-                    },
-                  ]}
-                  items={allComponents}
-                  stripedRows
-                />
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'component',
+                        header: 'Componente',
+                        cell: (e: any) => (
+                          <div>
+                            <span
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                color: colors.activeLink,
+                                display: 'block',
+                              }}
+                            >
+                              {e.name || e.tech}
+                            </span>
+                            {e.raw && (
+                              <span
+                                style={{ fontSize: '12px', color: '#879596' }}
+                              >
+                                {e.raw}
+                              </span>
+                            )}
+                          </div>
+                        ),
+                        minWidth: 250,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Aislamiento',
+                        cell: (e: any) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 350,
+                      },
+                    ]}
+                    items={m6Sec1Data}
+                    stripedRows
+                  />
+                </div>
               </Container>
-            </div>
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 2: Inyección de Jarabe
+                    </span>
+                  </Header>
+                }
+              >
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'component',
+                        header: 'Componente',
+                        cell: (e: any) => (
+                          <div>
+                            <span
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                color: colors.activeLink,
+                                display: 'block',
+                              }}
+                            >
+                              {e.name || e.tech}
+                            </span>
+                            {e.raw && (
+                              <span
+                                style={{ fontSize: '12px', color: '#879596' }}
+                              >
+                                {e.raw}
+                              </span>
+                            )}
+                          </div>
+                        ),
+                        minWidth: 250,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Aislamiento',
+                        cell: (e: any) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 350,
+                      },
+                    ]}
+                    items={m6Sec2Data}
+                    stripedRows
+                  />
+                </div>
+              </Container>
+              <Container
+                header={
+                  <Header variant="h2">
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        padding: '10px 0',
+                        display: 'block',
+                      }}
+                    >
+                      Sección 3: Sellado, Vacío y Salida
+                    </span>
+                  </Header>
+                }
+              >
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    width: '100%',
+                    maxWidth: '100%',
+                    display: 'block',
+                  }}
+                >
+                  <Table
+                    variant="embedded"
+                    columnDefinitions={[
+                      {
+                        id: 'component',
+                        header: 'Componente',
+                        cell: (e: any) => (
+                          <div>
+                            <span
+                              style={{
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                color: colors.activeLink,
+                                display: 'block',
+                              }}
+                            >
+                              {e.name || e.tech}
+                            </span>
+                            {e.raw && (
+                              <span
+                                style={{ fontSize: '12px', color: '#879596' }}
+                              >
+                                {e.raw}
+                              </span>
+                            )}
+                          </div>
+                        ),
+                        minWidth: 250,
+                      },
+                      {
+                        id: 'desc',
+                        header: 'Instrucción de Aislamiento',
+                        cell: (e: any) => (
+                          <span style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                            {e.desc}
+                          </span>
+                        ),
+                        minWidth: 350,
+                      },
+                    ]}
+                    items={m6Sec3Data}
+                    stripedRows
+                  />
+                </div>
+              </Container>
+            </SpaceBetween>
+          </div>
 
-            {/* SECCIÓN 1: MONDINI 6 */}
-            <div id="sec1" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Mondini 6 - Sección 1"
-                subtitle="Zona de Entrada, Motores Inferiores y Dosificación."
-                isDark={isDark}
-              />
+          <div id="sec1" className="section-wrap">
+            <SectionTitle
+              title="Mondini 6 - Sección 1"
+              subtitle="Inspección visual detallada de Componentes de Entrada."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
               {renderCards(m6Sec1Data)}
             </div>
-
-            {/* SECCIÓN 2: MONDINI 6 */}
-            <div id="sec2" style={{ marginBottom: '100px' }}>
-              <SectionTitle
-                title="Mondini 6 - Sección 2"
-                subtitle="Sellado, Sensores Magnéticos, Interfaz Superior y Tablero General."
-                isDark={isDark}
-              />
+          </div>
+          <div id="sec2" className="section-wrap">
+            <SectionTitle
+              title="Mondini 6 - Sección 2"
+              subtitle="Inspección visual de Componentes en Inyección de Jarabe."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
               {renderCards(m6Sec2Data)}
             </div>
           </div>
-
-          {/* --- COLUMNA DERECHA (STICKY NAV) --- */}
-          <div
-            style={{ height: '100%', borderLeft: `1px solid ${colors.border}` }}
-          >
-            <div
-              style={{ position: 'sticky', top: '120px', paddingLeft: '20px' }}
-            >
-              <SpaceBetween size="l">
-                <div>
-                  <h3
-                    style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      marginBottom: '10px',
-                      color: colors.textMain,
-                    }}
-                  >
-                    Navegación
-                  </h3>
-                  <ul
-                    style={{
-                      listStyle: 'none',
-                      padding: 0,
-                      margin: 0,
-                      borderLeft: `2px solid ${colors.border}`,
-                    }}
-                  >
-                    {SECTIONS.map((section) => (
-                      <li key={section.id} style={{ margin: 0 }}>
-                        <a
-                          href={`#${section.id}`}
-                          onClick={(e) => scrollToSection(e, section.id)}
-                          style={{
-                            display: 'block',
-                            padding: '6px 16px',
-                            textDecoration: 'none',
-                            fontSize: '14px',
-                            color:
-                              activeSection === section.id
-                                ? colors.activeLink
-                                : colors.textSecondary,
-                            fontWeight:
-                              activeSection === section.id ? '700' : '400',
-                            borderLeft:
-                              activeSection === section.id
-                                ? `2px solid ${colors.activeLink}`
-                                : '2px solid transparent',
-                            marginLeft: '-2px',
-                            transition: 'all 0.1s',
-                          }}
-                        >
-                          {section.text}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div
-                  style={{ height: '1px', backgroundColor: colors.border }}
-                ></div>
-
-                <div>
-                  <h3
-                    style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      marginBottom: '10px',
-                      color: colors.textMain,
-                    }}
-                  >
-                    ¿Reportar falla?
-                  </h3>
-                  <Button iconName={'status-warning' as any}>
-                    Levantar Ticket
-                  </Button>
-                </div>
-              </SpaceBetween>
+          <div id="sec3" className="section-wrap">
+            <SectionTitle
+              title="Mondini 6 - Sección 3"
+              subtitle="Inspección visual exhaustiva en la Zona de Sellado, Vacío y Salida de Producto."
+              isDark={isDark}
+            />
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              {renderCards(m6Sec3Data)}
             </div>
           </div>
-        </Grid>
+        </div>
+
+        <div className="flex-sidebar">
+          <div className="sticky-nav-inner">
+            <SpaceBetween size="xxl">
+              <div>
+                <h3
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: '900',
+                    marginBottom: '20px',
+                    color: colors.textMain,
+                    letterSpacing: '-0.5px',
+                  }}
+                >
+                  Navegación
+                </h3>
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    borderLeft: `3px solid ${colors.border}`,
+                  }}
+                >
+                  {SECTIONS.map((section) => (
+                    <li key={section.id} style={{ margin: 0 }}>
+                      <a
+                        href={`#${section.id}`}
+                        onClick={(e) => scrollToSection(e, section.id)}
+                        style={{
+                          display: 'block',
+                          padding: '10px 20px',
+                          textDecoration: 'none',
+                          fontSize: '15px',
+                          color:
+                            activeSection === section.id
+                              ? colors.activeLink
+                              : colors.textSecondary,
+                          fontWeight:
+                            activeSection === section.id ? '800' : '500',
+                          borderLeft:
+                            activeSection === section.id
+                              ? `3px solid ${colors.activeLink}`
+                              : '3px solid transparent',
+                          marginLeft: '-3px',
+                          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                          backgroundColor:
+                            activeSection === section.id
+                              ? isDark
+                                ? 'rgba(9, 114, 211, 0.1)'
+                                : 'rgba(9, 114, 211, 0.05)'
+                              : 'transparent',
+                        }}
+                      >
+                        {section.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </SpaceBetween>
+          </div>
+        </div>
       </div>
+
+      <Footer />
     </div>
   );
 }

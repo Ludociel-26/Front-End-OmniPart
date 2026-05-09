@@ -63,7 +63,7 @@ export const m3Sec2Data = [
     image: { src: imgBoquillaDeAire_Fisico, label: 'Componente' },
   },
   {
-    name: 'Uniones de lineas neumaticas',
+    name: 'Uniones de líneas neumáticas',
     desc: 'Aislar completamente con bolsa las uniones y no aplicar agua a alta presión.',
     image: { src: imgMotoresBandasEntrada_Fisico, label: 'Componente' },
   },
