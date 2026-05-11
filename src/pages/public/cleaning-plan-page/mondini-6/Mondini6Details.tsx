@@ -23,7 +23,7 @@ import {
 // IMPORTACIONES
 // ==========================================
 import { Footer } from '@/components/layouts/AppFooter';
-import logoSistema from '@/assets/icons/logo.svg';
+import logoSistema from '@/assets/icons/logo-2.svg';
 
 // Importa los datos de Mondini 6
 import { m6Sec1Data, m6Sec2Data, m6Sec3Data } from './mondini6Data';
@@ -460,7 +460,42 @@ export default function Mondini6Details() {
     }
   };
 
+  // PRE-PROCESAMIENTO ASÍNCRONO DE IMÁGENES
+  const processPdfData = async (dataArray: any[]) => {
+    const processed = [];
+    for (const item of dataArray) {
+      let pdfImageSrc = null;
+      const originalSrc =
+        item.image?.src || (item.images && item.images[0]?.src);
+
+      if (originalSrc) {
+        if (originalSrc.startsWith('data:')) {
+          pdfImageSrc = originalSrc;
+        } else {
+          const imgData = await getLogoData(originalSrc);
+          if (imgData) pdfImageSrc = imgData.data;
+        }
+      }
+      processed.push({ ...item, pdfImageSrc });
+    }
+    return processed;
+  };
+
   const handleExportPDF = async () => {
+    const exportMsgId = 'pdf-export-status';
+
+    // 1. Notificación de Carga
+    setFlashbarItems((prev) => [
+      {
+        type: 'info',
+        loading: true,
+        content:
+          'Generando documento PDF y procesando imágenes. Por favor, espere...',
+        id: exportMsgId,
+      },
+      ...prev,
+    ]);
+
     setIsExporting(true);
 
     try {
@@ -495,10 +530,14 @@ export default function Mondini6Details() {
 
       const logoData = await getLogoData(logoSistema);
 
+      // Pre-procesamiento de datos a Base64
+      const pdfSec1Data = await processPdfData(m6Sec1Data);
+      const pdfSec2Data = await processPdfData(m6Sec2Data);
+      const pdfSec3Data = await processPdfData(m6Sec3Data);
+
       // --- HEADER GLOBAL MONDINI 6 ---
       const drawAWSHeader = () => {
         if (logoData) {
-          // RESTAURACIÓN AL TAMAÑO ORIGINAL Y CORPORATIVO (160x45)
           const maxLogoW = 160;
           const maxLogoH = 45;
           const ratio = logoData.width / logoData.height;
@@ -670,7 +709,7 @@ export default function Mondini6Details() {
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
 
-      // SANITIZACIÓN: Solo texto plano sin emojis para garantizar renderizado perfecto
+      // SANITIZACIÓN: Texto sin emojis para un renderizado perfecto.
       const preText = doc.splitTextToSize(
         'NOTA DE SEGURIDAD\n\nEl lavado inadecuado de componentes críticos puede ocasionar fallas en el equipo y generar condiciones inseguras. Es obligatorio seguir las instrucciones de protección establecidas en este catálogo:\n\nX NO dirigir agua a presión sobre componentes eléctricos o neumáticos.\nX NO remover protecciones durante lavado.\nX NO aplicar químicos directamente sobre sensores o sellos.',
         contentWidth - 16,
@@ -693,7 +732,9 @@ export default function Mondini6Details() {
           head: [['No', 'Componente', 'Instrucción']],
           body: data.map((item, i) => [
             String(i + 1),
-            `${item.name || item.tech || '---'}${item.raw ? `\nFísico: ${item.raw}` : ''}`,
+            `${item.name || item.tech || '---'}${
+              item.raw ? `\nFísico: ${item.raw}` : ''
+            }`,
             String(item.desc || ''),
           ]),
           theme: 'grid',
@@ -790,12 +831,30 @@ export default function Mondini6Details() {
             if (dataHook.section === 'body' && dataHook.column.index === 1) {
               const rowIndex = dataHook.row.index;
 
-              const imgSrc =
-                data[rowIndex].image?.src ||
-                (data[rowIndex].images && data[rowIndex].images[0]?.src);
+              // Lee la imagen generada por processPdfData
+              const imgSrc = data[rowIndex].pdfImageSrc;
+
+              const drawFallbackText = () => {
+                doc.setFontSize(7.5);
+                doc.setTextColor(150, 150, 150);
+                const txt = 'Fotografía no disponible';
+                const w = doc.getTextWidth(txt);
+                doc.text(
+                  txt,
+                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
+                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
+                );
+                doc.setTextColor(0, 0, 0);
+              };
 
               if (dataHook.cell && imgSrc) {
                 try {
+                  const format =
+                    imgSrc.includes('image/png') ||
+                    imgSrc.toLowerCase().endsWith('.png')
+                      ? 'PNG'
+                      : 'JPEG';
+
                   const imgProps = doc.getImageProperties(imgSrc);
                   const imgRatio = imgProps.width / imgProps.height;
 
@@ -817,7 +876,7 @@ export default function Mondini6Details() {
 
                   doc.addImage(
                     imgSrc,
-                    'JPEG',
+                    format,
                     xOffset,
                     yOffset,
                     finalW,
@@ -826,19 +885,10 @@ export default function Mondini6Details() {
                     'FAST',
                   );
                 } catch (e) {
-                  // Fallback
+                  drawFallbackText();
                 }
               } else if (dataHook.cell) {
-                doc.setFontSize(7.5);
-                doc.setTextColor(150, 150, 150);
-                const txt = 'Fotografía no disponible';
-                const w = doc.getTextWidth(txt);
-                doc.text(
-                  txt,
-                  dataHook.cell.x + dataHook.cell.width / 2 - w / 2,
-                  dataHook.cell.y + dataHook.cell.height / 2 + 3,
-                );
-                doc.setTextColor(0, 0, 0);
+                drawFallbackText();
               }
             }
           },
@@ -847,15 +897,15 @@ export default function Mondini6Details() {
         return (doc as any).lastAutoTable.finalY + 15;
       };
 
-      currentY = drawVisualTable('SECCIÓN 1: ENTRADA', m6Sec1Data);
+      currentY = drawVisualTable('SECCIÓN 1: ENTRADA', pdfSec1Data);
 
       doc.addPage();
       currentY = safeTopMargin + 10;
-      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', m6Sec2Data);
+      currentY = drawVisualTable('SECCIÓN 2: INYECCIÓN DE JARABE', pdfSec2Data);
 
       doc.addPage();
       currentY = safeTopMargin + 10;
-      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', m6Sec3Data);
+      drawVisualTable('SECCIÓN 3: SELLADO, VACÍO Y SALIDA', pdfSec3Data);
 
       // Inyección Global de Headers y Footers
       const pageCount = (doc as any).internal.getNumberOfPages();
@@ -866,8 +916,39 @@ export default function Mondini6Details() {
       }
 
       doc.save('Mondini6_Plan_Lavado.pdf');
+
+      // 2. Notificación de Éxito
+      setFlashbarItems((prev) =>
+        prev.map((item) =>
+          item.id === exportMsgId
+            ? {
+                type: 'success',
+                content: 'Documento PDF generado y descargado con éxito.',
+                id: exportMsgId,
+                dismissible: true,
+                onDismiss: () => handleDismiss(exportMsgId),
+              }
+            : item,
+        ),
+      );
     } catch (error) {
       console.error('Error crítico al generar PDF: ', error);
+
+      // 3. Notificación de Error
+      setFlashbarItems((prev) =>
+        prev.map((item) =>
+          item.id === exportMsgId
+            ? {
+                type: 'error',
+                content:
+                  'Hubo un error al generar el PDF. Por favor, inténtelo de nuevo.',
+                id: exportMsgId,
+                dismissible: true,
+                onDismiss: () => handleDismiss(exportMsgId),
+              }
+            : item,
+        ),
+      );
     } finally {
       setIsExporting(false);
     }

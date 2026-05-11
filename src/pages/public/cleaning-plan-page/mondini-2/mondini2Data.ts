@@ -193,7 +193,7 @@ export const m2Sec3Data = [
     image: { src: Chumacera3, label: 'Componente' },
   },
   {
-    name: 'Cabezales de impresion',
+    name: 'Cabezales de impresión',
     desc: 'Cubrir completamente con bolsa y asegurar para evitar humedad interna.',
     image: { src: Cabezales_Impresion, label: 'Componente' },
   },
