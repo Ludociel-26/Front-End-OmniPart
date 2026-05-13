@@ -213,10 +213,3 @@ export const m3Sec3Data = [
     image: { src: Impresoras, label: 'Componente' },
   },
 ];
-
-export const SECTIONS = [
-  { id: 'intro', text: 'Propósito del Protocolo' },
-  { id: 'tabla', text: 'Inventario Completo' },
-  { id: 'sec1', text: 'Sección 1 (Entrada)' },
-  { id: 'sec2', text: 'Sección 2 (Sellado)' },
-];

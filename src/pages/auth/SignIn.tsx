@@ -9,6 +9,8 @@ import {
   Monitor,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  MoreVertical,
   Mail,
   User,
   Lock,
@@ -407,18 +409,32 @@ const InfoPanel = ({
   );
 };
 
+// LISTA DE IDIOMAS DISPONIBLES
+const AVAILABLE_LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'zh', label: '中文' },
+];
+
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
 
-  const { t, language } = useLanguage();
+  const languageContext = useLanguage() as any;
+  const t = languageContext.t;
+  const currentLanguage = languageContext.language || 'en';
+  const setContextLanguage =
+    languageContext.changeLanguage || languageContext.setLanguage;
+
   const appContext = useContext(AppContent);
 
   if (!appContext) {
     throw new Error('AppContent must be used within AppContextProvider');
   }
 
-  // 🚩 EXTRAEMOS LA FUNCIÓN DE SINCRONIZACIÓN
   const {
     theme,
     isDark,
@@ -433,6 +449,43 @@ export default function Login() {
     alerts,
     executeGlobalLoginSync,
   } = appContext as any;
+
+  // Estados para los menús desplegables
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const [isSessionMenuOpen, setIsSessionMenuOpen] = useState(false);
+
+  // 🚩 Estado para Multisesión funcional
+  const [isMultiSessionEnabled, setIsMultiSessionEnabled] = useState(false);
+
+  // Estado para el menú unificado/anidado en Móvil
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileMenuView, setMobileMenuView] = useState<
+    'main' | 'language' | 'session'
+  >('main');
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      setTimeout(() => setMobileMenuView('main'), 200);
+    }
+  }, [isMobileMenuOpen]);
+
+  const handleLanguageChange = (langCode: string) => {
+    if (setContextLanguage) {
+      setContextLanguage(langCode);
+    }
+    setIsLangMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleToggleSession = () => {
+    setIsMultiSessionEnabled((prev) => !prev);
+    setIsSessionMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const currentLanguageLabel =
+    AVAILABLE_LANGUAGES.find((l) => l.code === currentLanguage)?.label ||
+    'English';
 
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
@@ -537,7 +590,6 @@ export default function Login() {
           setIsLoggedin(true);
           await getUserData();
 
-          // 🚩 MAGIA AWS: Avisa a las otras pestañas que ya hay sesión activa
           if (executeGlobalLoginSync) {
             executeGlobalLoginSync();
           }
@@ -570,7 +622,6 @@ export default function Login() {
           setIsLoggedin(true);
           await getUserData();
 
-          // 🚩 MAGIA AWS: Avisa a las otras pestañas que ya hay sesión activa
           if (executeGlobalLoginSync) {
             executeGlobalLoginSync();
           }
@@ -656,6 +707,20 @@ export default function Login() {
     return null;
   }
 
+  // --- Estilos Base para Botones ---
+  const topBtnContainer = `px-3 py-1.5 rounded-full border backdrop-blur-md transition-all duration-300 flex items-center gap-2 hover:scale-[1.02] ${
+    isDark
+      ? 'bg-black/20 border-white/10 text-zinc-300 hover:text-white hover:bg-black/40'
+      : 'bg-white/70 border-white/60 text-gray-900 shadow-sm font-semibold hover:bg-white/90 drop-shadow-sm'
+  }`;
+
+  // 🚩 Estilos MEJORADOS para Menús Desplegables (Glassmorphism real con padding interno)
+  const dropdownMenuClasses = `absolute top-[110%] right-0 w-48 rounded-2xl shadow-2xl border backdrop-blur-2xl z-50 p-1.5 flex flex-col gap-0.5 ${
+    isDark
+      ? 'bg-[#121212]/80 border-white/10 text-white'
+      : 'bg-white/80 border-white/60 text-gray-900 font-medium'
+  }`;
+
   return (
     <>
       <style>{`
@@ -681,6 +746,206 @@ export default function Login() {
           ></div>
         </div>
 
+        {/* --- Navegación Superior Responsiva AWS Style --- */}
+        <div className={`absolute top-4 right-4 sm:right-6 z-[60]`}>
+          {/* VISTA ESCRITORIO (Oculto en móviles) */}
+          <div className="hidden sm:flex items-center gap-3 text-[11px] font-bold">
+            <button className={topBtnContainer}>Provide feedback</button>
+
+            {/* Multi-session Dropdown Desktop */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsSessionMenuOpen(!isSessionMenuOpen);
+                  setIsLangMenuOpen(false);
+                }}
+                className={topBtnContainer}
+              >
+                Multi-session {isMultiSessionEnabled ? 'enabled' : 'disabled'}{' '}
+                <ChevronDown size={14} className="opacity-70" />
+              </button>
+              <AnimatePresence>
+                {isSessionMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className={dropdownMenuClasses}
+                  >
+                    <button
+                      onClick={handleToggleSession}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors text-xs ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                    >
+                      {isMultiSessionEnabled
+                        ? 'Disable multi-session'
+                        : 'Enable multi-session'}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Language Dropdown Desktop - FUNCIONAL Y ELEGANTE */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsLangMenuOpen(!isLangMenuOpen);
+                  setIsSessionMenuOpen(false);
+                }}
+                className={topBtnContainer}
+              >
+                {currentLanguageLabel}{' '}
+                <ChevronDown size={14} className="opacity-70" />
+              </button>
+              <AnimatePresence>
+                {isLangMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className={`${dropdownMenuClasses} w-36 max-h-60 overflow-y-auto custom-scrollbar`}
+                  >
+                    {AVAILABLE_LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleLanguageChange(lang.code)}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors text-xs flex items-center justify-between ${
+                          isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                        } ${currentLanguage === lang.code ? (isDark ? 'bg-white/10 text-blue-400 font-bold' : 'bg-black/5 text-blue-600 font-bold') : ''}`}
+                      >
+                        {lang.label}
+                        {currentLanguage === lang.code && <Check size={14} />}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* VISTA MÓVIL ANIDADA (Drill-down pattern) */}
+          <div className="flex sm:hidden relative">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(!isMobileMenuOpen);
+                setMobileMenuView('main');
+              }}
+              className={`${topBtnContainer} !px-2.5`}
+            >
+              <MoreVertical size={16} className="opacity-80" />
+            </button>
+
+            <AnimatePresence>
+              {isMobileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                  className={`absolute top-[115%] right-0 w-52 rounded-2xl shadow-2xl border backdrop-blur-2xl z-50 p-1.5 flex flex-col gap-0.5 ${
+                    isDark
+                      ? 'bg-[#121212]/80 border-white/10 text-white'
+                      : 'bg-white/90 border-white/60 text-gray-900 font-medium'
+                  }`}
+                >
+                  <AnimatePresence mode="wait">
+                    {/* VISTA PRINCIPAL DEL MENÚ MÓVIL */}
+                    {mobileMenuView === 'main' && (
+                      <motion.div
+                        key="main-view"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <button
+                          className={`w-full text-left px-3 py-3 rounded-xl transition-colors text-xs ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                        >
+                          Provide feedback
+                        </button>
+                        <div
+                          className={`mx-2 my-1 h-[1px] ${isDark ? 'bg-white/10' : 'bg-black/5'}`}
+                        />
+
+                        <button
+                          onClick={handleToggleSession}
+                          className={`w-full text-left px-3 py-3 rounded-xl transition-colors text-xs flex justify-between items-center ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                        >
+                          <span>
+                            {isMultiSessionEnabled
+                              ? 'Disable multi-session'
+                              : 'Enable multi-session'}
+                          </span>
+                        </button>
+                        <div
+                          className={`mx-2 my-1 h-[1px] ${isDark ? 'bg-white/10' : 'bg-black/5'}`}
+                        />
+
+                        {/* Botón para entrar al submenú de idiomas */}
+                        <button
+                          onClick={() => setMobileMenuView('language')}
+                          className={`w-full flex justify-between items-center px-3 py-3 rounded-xl transition-colors text-xs ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                        >
+                          <span>
+                            Language:{' '}
+                            <span className="font-bold">
+                              {currentLanguageLabel}
+                            </span>
+                          </span>
+                          <ChevronRight size={14} className="opacity-70" />
+                        </button>
+                      </motion.div>
+                    )}
+
+                    {/* VISTA DE IDIOMAS DEL MENÚ MÓVIL */}
+                    {mobileMenuView === 'language' && (
+                      <motion.div
+                        key="language-view"
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex flex-col max-h-60"
+                      >
+                        {/* Header con botón para volver atrás */}
+                        <div className="flex items-center mb-1 sticky top-0 z-10 pb-1">
+                          <button
+                            onClick={() => setMobileMenuView('main')}
+                            className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span className="text-xs font-bold ml-1">
+                            Select Language
+                          </span>
+                        </div>
+
+                        <div className="overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
+                          {AVAILABLE_LANGUAGES.map((lang) => (
+                            <button
+                              key={lang.code}
+                              onClick={() => handleLanguageChange(lang.code)}
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-xs ${
+                                isDark
+                                  ? 'hover:bg-white/10'
+                                  : 'hover:bg-black/5'
+                              } ${currentLanguage === lang.code ? (isDark ? 'bg-white/10 text-blue-400 font-bold' : 'bg-black/5 text-blue-600 font-bold') : ''}`}
+                            >
+                              {lang.label}
+                              {currentLanguage === lang.code && (
+                                <Check size={14} />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
         <img
           src={LOGO_IMAGE}
           alt="Logo"
@@ -689,7 +954,7 @@ export default function Login() {
 
         <motion.div
           layout
-          className={`relative z-10 w-full shadow-2xl overflow-hidden grid lg:grid-cols-2 transition-all duration-500 mx-auto max-w-[420px] lg:max-w-5xl h-auto min-h-[500px] lg:h-[600px] rounded-[2.5rem] backdrop-blur-xl border border-white/10 ${isDark ? 'bg-black/30' : 'bg-white/40'} ${'lg:rounded-[3.5rem] lg:bg-transparent lg:shadow-none lg:backdrop-blur-none lg:border-none'} mt-12 md:mt-0`}
+          className={`relative z-10 w-full shadow-2xl overflow-hidden grid lg:grid-cols-2 transition-all duration-500 mx-auto max-w-[420px] lg:max-w-5xl h-auto min-h-[500px] lg:h-[600px] rounded-[2.5rem] backdrop-blur-xl border border-white/10 ${isDark ? 'bg-black/30' : 'bg-white/40'} ${'lg:rounded-[3.5rem] lg:bg-transparent lg:shadow-none lg:backdrop-blur-none lg:border-none'} mt-12 md:mt-0 mb-6`}
         >
           <div
             className={`relative p-6 sm:p-8 flex flex-col w-full h-full transition-all duration-500 ${isDark ? 'lg:bg-[#121212]/40' : 'lg:bg-white/30'} ${'lg:rounded-l-[3rem] lg:backdrop-blur-2xl lg:border-y lg:border-l lg:border-white/10'} lg:pr-16 xl:pr-20`}
@@ -705,7 +970,7 @@ export default function Login() {
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full uppercase border ${isDark ? 'bg-white/10 border-white/20 text-zinc-400' : 'bg-black/5 border-black/10 text-zinc-500'}`}
                 >
-                  {language}
+                  {currentLanguage}
                 </span>
               </div>
               <button
@@ -1030,15 +1295,30 @@ export default function Login() {
 
             <div className="mt-4 text-center lg:text-left flex-shrink-0">
               <p
-                className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-gray-600'}`}
+                className={`text-[10px] leading-relaxed ${isDark ? 'text-zinc-500' : 'text-gray-600'}`}
               >
-                {t('footer')}{' '}
+                By continuing, you agree to{' '}
                 <a
                   href="#"
-                  className="underline hover:text-blue-600 transition-colors"
+                  className="underline hover:text-blue-500 transition-colors"
                 >
-                  {t('privacy')}
+                  QuickFind Customer Agreement
+                </a>{' '}
+                or other agreement for QuickFind services, and the{' '}
+                <a
+                  href="#"
+                  className="underline hover:text-blue-500 transition-colors"
+                >
+                  Privacy Notice
                 </a>
+                . This site uses essential cookies. See our{' '}
+                <a
+                  href="#"
+                  className="underline hover:text-blue-500 transition-colors"
+                >
+                  Cookie Notice
+                </a>{' '}
+                for more information.
               </p>
             </div>
           </div>
@@ -1053,7 +1333,21 @@ export default function Login() {
           />
         </motion.div>
 
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-[600px] px-4 pointer-events-none transition-all duration-300">
+        {/* --- Leyenda Footer "Píldora" minimalista --- */}
+        <div className="fixed bottom-4 left-0 w-full flex justify-center text-center text-[10px] font-medium z-40 transition-all duration-500 px-4">
+          <span
+            className={`px-4 py-1.5 rounded-full backdrop-blur-md border ${
+              isDark
+                ? 'bg-black/40 border-white/10 text-zinc-300'
+                : 'bg-white/60 border-white/50 text-gray-800 shadow-sm drop-shadow-sm'
+            }`}
+          >
+            © 2026 QuickFind, Inc. or its affiliates. All rights reserved.
+          </span>
+        </div>
+
+        {/* Notificaciones Flashbar */}
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-[600px] px-4 pointer-events-none transition-all duration-300">
           <div className="pointer-events-auto shadow-2xl rounded-xl overflow-hidden">
             <Flashbar items={alerts as any} stackItems={true} />
           </div>

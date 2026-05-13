@@ -105,12 +105,12 @@ export const m2Sec2Data = [
     image: { src: Torreta, label: 'Componente' },
   },
   {
-    name: 'Tableros electricos',
+    name: 'Tableros eléctricos',
     desc: 'Asegurarse de que la puerta del gabinete se encuentre sellada y aislar con bolsa plástica.',
     image: { src: Tablero_Electrico, label: 'Componente' },
   },
   {
-    name: 'Cableado electrico',
+    name: 'Cableado eléctrico',
     desc: 'Evitar dirigir agua directamente sobre el componente.',
     image: { src: Cableado, label: 'Componente' },
   },
