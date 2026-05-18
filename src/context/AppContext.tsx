@@ -6,6 +6,8 @@ import React, {
   useRef,
 } from 'react';
 import axios from 'axios';
+// 🚩 IMPORTAMOS TU INSTANCIA API PARA INYECTARLE EL TOKEN TAMBIÉN
+import api from '@/services/api';
 import { applyMode, Mode } from '@cloudscape-design/global-styles';
 import {
   Modal,
@@ -16,7 +18,7 @@ import {
   Spinner,
 } from '@cloudscape-design/components';
 
-// 🔒 Asegura que el Front-End envíe las cookies (JWT) en cada petición
+// 🔒 Asegura que el Front-End envíe las cookies en peticiones Cross-Origin
 axios.defaults.withCredentials = true;
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -103,7 +105,7 @@ export const AppContextProvider = ({
     }
   }, [showWarningModal, showExpiredModal, showDisabledModal]);
 
-  // 🚩 LÓGICA DE ALERTAS INTACTA
+  // LÓGICA DE ALERTAS
   const addAlert = useCallback(
     (
       type: AlertItem['type'],
@@ -201,6 +203,9 @@ export const AppContextProvider = ({
     try {
       await axios.post(`${backendUrl}/api/auth/logout`);
     } catch (err) {}
+
+    localStorage.removeItem('auth_token');
+
     setIsLoggedin(false);
     setUserData(null);
     setShowExpiredModal(false);
@@ -216,50 +221,105 @@ export const AppContextProvider = ({
     authChannel.current?.postMessage({ type: 'LOGIN_SYNC' });
 
   // =======================================================================
-  // INTERCEPTOR CON MANEJO DE MENSAJES DINÁMICOS
+  // 🚩 INTERCEPTORES UNIFICADOS PARA MICROSERVICIOS
   // =======================================================================
   useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        const url = error.config?.url || '';
+    // Función reutilizable para inyectar el token en CUALQUIER instancia
+    const injectToken = (config: any) => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    };
 
-        if (
-          url.includes('/login') ||
-          url.includes('/register') ||
-          url.includes('init=true')
-        ) {
-          return Promise.reject(error);
-        }
+    // Función reutilizable para manejar la renovación (Refresh Token)
+    const handleResponseError = async (error: any) => {
+      const originalRequest = error.config;
+      const url = originalRequest?.url || '';
 
-        if (error.response) {
-          // 🚩 Extraemos el mensaje humano del Back-End. Si no existe, usamos un fallback seguro.
-          const backendMessage =
-            error.response.data?.message ||
-            'Ha ocurrido un error de autenticación.';
-
-          if (error.response.status === 403) {
-            setShowDisabledModal(true);
-            // El mensaje se inyecta directamente en la notificación de Cloudscape
-            addAlert('error', backendMessage, 'Acceso Restringido');
-            authChannel.current?.postMessage({
-              type: 'LOGOUT_SYNC',
-              payload: 'DISABLED',
-            });
-          } else if (error.response.status === 401) {
-            setShowExpiredModal(true);
-            addAlert('error', backendMessage, 'Sesión Terminada');
-            authChannel.current?.postMessage({
-              type: 'LOGOUT_SYNC',
-              payload: 'EXPIRED',
-            });
-          }
-        }
+      if (
+        url.includes('/login') ||
+        url.includes('/register') ||
+        url.includes('/refresh-token') ||
+        url.includes('init=true')
+      ) {
         return Promise.reject(error);
-      },
+      }
+
+      // Si caduca el Access Token, usamos la cookie para pedir otro en silencio
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          // Pedimos la renovación (la cookie vieja viaja aquí automáticamente)
+          const refreshResponse = await axios.post(
+            `${backendUrl}/api/auth/refresh-token`,
+          );
+
+          if (refreshResponse.data.success) {
+            const newAccessToken = refreshResponse.data.accessToken;
+            localStorage.setItem('auth_token', newAccessToken);
+
+            // Reintentamos la petición que había fallado
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            // 🚩 Usamos axios nativo para reintentar respetando la config original
+            return axios(originalRequest);
+          }
+        } catch (refreshError) {
+          // Si el refresh_token expiró, cerramos la sesión en la cara del usuario
+          setShowExpiredModal(true);
+          addAlert(
+            'error',
+            'Sesión Terminada por Inactividad prolongada.',
+            'Sesión Terminada',
+          );
+          authChannel.current?.postMessage({
+            type: 'LOGOUT_SYNC',
+            payload: 'EXPIRED',
+          });
+          localStorage.removeItem('auth_token');
+          return Promise.reject(refreshError);
+        }
+      }
+
+      if (error.response?.status === 403) {
+        setShowDisabledModal(true);
+        const backendMessage =
+          error.response.data?.message || 'Acceso Restringido.';
+        addAlert('error', backendMessage, 'Acceso Restringido');
+        authChannel.current?.postMessage({
+          type: 'LOGOUT_SYNC',
+          payload: 'DISABLED',
+        });
+      }
+
+      return Promise.reject(error);
+    };
+
+    // 🚩 APLICAMOS A AXIOS (API Auth y Base)
+    const reqAxios = axios.interceptors.request.use(injectToken, (e) =>
+      Promise.reject(e),
     );
-    return () => axios.interceptors.response.eject(interceptor);
-  }, [addAlert]);
+    const resAxios = axios.interceptors.response.use(
+      (r) => r,
+      handleResponseError,
+    );
+
+    // 🚩 APLICAMOS A TU INSTANCIA "api" (API Mantenimiento)
+    const reqApi = api.interceptors.request.use(injectToken, (e) =>
+      Promise.reject(e),
+    );
+    const resApi = api.interceptors.response.use((r) => r, handleResponseError);
+
+    return () => {
+      // Limpieza
+      axios.interceptors.request.eject(reqAxios);
+      axios.interceptors.response.eject(resAxios);
+      api.interceptors.request.eject(reqApi);
+      api.interceptors.response.eject(resApi);
+    };
+  }, [backendUrl, addAlert]);
 
   // =======================================================================
   // RELOJES Y HEARTBEAT DE SEGURIDAD
@@ -273,6 +333,9 @@ export const AppContextProvider = ({
       try {
         await axios.post(`${backendUrl}/api/auth/logout`);
       } catch (err) {}
+
+      localStorage.removeItem('auth_token');
+
       setShowWarningModal(false);
       setShowExpiredModal(true);
       addAlert(
@@ -314,11 +377,7 @@ export const AppContextProvider = ({
             }
           } catch (error: any) {
             if (error.response && error.response.status === 401) {
-              setShowExpiredModal(true);
-              authChannel.current?.postMessage({
-                type: 'LOGOUT_SYNC',
-                payload: 'EXPIRED',
-              });
+              // Interceptor se encargará
             }
           }
         }
@@ -342,6 +401,8 @@ export const AppContextProvider = ({
   ]);
 
   const handleGoToLogin = () => {
+    localStorage.removeItem('auth_token');
+
     setIsLoggedin(false);
     setUserData(null);
     setShowExpiredModal(false);
@@ -420,7 +481,7 @@ export const AppContextProvider = ({
 
   return (
     <AppContent.Provider value={value}>
-      {/* 🛑 MODAL DE CUENTA DESHABILITADA (UX Pulida) */}
+      {/* 🛑 MODAL DE CUENTA DESHABILITADA */}
       <Modal
         onDismiss={() => {}}
         visible={showDisabledModal}

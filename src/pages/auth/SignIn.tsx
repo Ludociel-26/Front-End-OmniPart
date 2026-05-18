@@ -455,7 +455,7 @@ export default function Login() {
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isSessionMenuOpen, setIsSessionMenuOpen] = useState(false);
 
-  // 🚩 Estado para Multisesión funcional
+  // Estado para Multisesión funcional
   const [isMultiSessionEnabled, setIsMultiSessionEnabled] = useState(false);
 
   // Estado para el menú unificado/anidado en Móvil
@@ -553,7 +553,7 @@ export default function Login() {
     strengthPercent === 100 && formData.password === formData.confirmPassword;
 
   // =======================================================================
-  // 🚩 LÓGICA DE SUBMIT REFACTORIZADA (Usando `api.post`)
+  // LÓGICA DE SUBMIT (Soporte nativo para Patrón Access + Refresh Token)
   // =======================================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -568,10 +568,8 @@ export default function Login() {
     );
 
     try {
-      // 🚩 axios.defaults.withCredentials se eliminó porque 'api' ya lo maneja internamente.
-
       if (!isLogin) {
-        // Usamos la instancia centralizada 'api'
+        // 🚩 REGISTRO: El navegador recibe y guarda automáticamente la cookie segura 'refresh_token' en segundo plano.
         const { data } = await api.post(`/api/auth/register`, {
           name: formData.name,
           surname: formData.surname,
@@ -583,6 +581,12 @@ export default function Login() {
 
         if (data.success) {
           await new Promise((resolve) => setTimeout(resolve, 800));
+
+          // 🚩 Guardamos el Access Token (corto) recibido en el JSON de respuesta
+          if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+          }
+
           addAlert(
             'success',
             'Cuenta creada exitosamente. Bienvenido.',
@@ -608,7 +612,7 @@ export default function Login() {
           setPageLoading(false);
         }
       } else {
-        // Usamos la instancia centralizada 'api'
+        // 🚩 LOGIN: El navegador recibe y guarda automáticamente la cookie segura 'refresh_token' en segundo plano.
         const { data } = await api.post(`/api/auth/login`, {
           email: formData.email,
           password: formData.password,
@@ -616,6 +620,12 @@ export default function Login() {
 
         if (data.success) {
           await new Promise((resolve) => setTimeout(resolve, 800));
+
+          // 🚩 Guardamos el Access Token (corto) recibido en el JSON de respuesta
+          if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+          }
+
           addAlert(
             'success',
             'Sesión iniciada correctamente.',

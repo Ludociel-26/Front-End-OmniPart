@@ -1,5 +1,7 @@
 import * as React from 'react';
-import axios from 'axios';
+// 🚩 IMPORTANTE: Ya no usamos axios puro aquí
+import api from '@/services/api';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -259,6 +261,14 @@ export default function ChemicalAnalysisLogsTable() {
   const [selectedItems, setSelectedItems] = React.useState<any[]>([]);
   const [splitPanelOpen, setSplitPanelOpen] = React.useState(false);
 
+  // 🚩 Nuevo estado para manejar las preferencias del SplitPanel (Evita Warning en consola)
+  const [splitPanelPreferences, setSplitPanelPreferences] = React.useState<any>(
+    {
+      position: 'side',
+      size: 380,
+    },
+  );
+
   // Estados de SGC
   const [isConfigModalVisible, setIsConfigModalVisible] = React.useState(false);
   const [isSavingConfig, setIsSavingConfig] = React.useState(false);
@@ -319,10 +329,8 @@ export default function ChemicalAnalysisLogsTable() {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `${MAINTENANCE_API_URL}/api/chemical-analysis`,
-        { withCredentials: true },
-      );
+      // 🚩 USANDO LA INSTANCIA api EN LUGAR DE axios
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/chemical-analysis`);
       if (res.data.success) {
         setRawLogs(res.data.data);
         const flatData: any[] = [];
@@ -370,10 +378,8 @@ export default function ChemicalAnalysisLogsTable() {
   // --- LÓGICA SGC ---
   const handleOpenConfigModal = async () => {
     try {
-      const res = await axios.get(
-        `${MAINTENANCE_API_URL}/api/document-configs`,
-        { withCredentials: true },
-      );
+      // 🚩 USANDO LA INSTANCIA api
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/document-configs`);
       if (res.data.success) {
         const current = res.data.data.find(
           (c: any) => c.area_key === 'analisis_quimicos_vapor',
@@ -400,10 +406,10 @@ export default function ChemicalAnalysisLogsTable() {
   const handleSaveConfig = async () => {
     setIsSavingConfig(true);
     try {
-      const res = await axios.put(
+      // 🚩 USANDO LA INSTANCIA api
+      const res = await api.put(
         `${MAINTENANCE_API_URL}/api/document-configs/analisis_quimicos_vapor`,
         formConfig,
-        { withCredentials: true },
       );
       if (res.data.success) {
         if (addAlert)
@@ -452,11 +458,8 @@ export default function ChemicalAnalysisLogsTable() {
       razon_cambio: editItem.logMetadata.razon_cambio,
     };
     try {
-      await axios.post(
-        `${MAINTENANCE_API_URL}/api/chemical-analysis`,
-        payload,
-        { withCredentials: true },
-      );
+      // 🚩 USANDO LA INSTANCIA api
+      await api.post(`${MAINTENANCE_API_URL}/api/chemical-analysis`, payload);
       if (addAlert)
         addAlert(
           'success',
@@ -480,10 +483,8 @@ export default function ChemicalAnalysisLogsTable() {
         new Set(selectedItems.map((item) => item.logId)),
       );
       for (const id of uniqueLogIds) {
-        await axios.delete(
-          `${MAINTENANCE_API_URL}/api/chemical-analysis/${id}`,
-          { withCredentials: true },
-        );
+        // 🚩 USANDO LA INSTANCIA api
+        await api.delete(`${MAINTENANCE_API_URL}/api/chemical-analysis/${id}`);
       }
       if (addAlert)
         addAlert(
@@ -947,7 +948,11 @@ export default function ChemicalAnalysisLogsTable() {
         }
         splitPanelOpen={splitPanelOpen}
         onSplitPanelToggle={({ detail }) => setSplitPanelOpen(detail.open)}
-        splitPanelPreferences={{ position: 'side', size: 380 } as any}
+        // 🚩 SOLUCIÓN DE LA ADVERTENCIA APLICADA AQUÍ
+        splitPanelPreferences={splitPanelPreferences}
+        onSplitPanelPreferencesChange={({ detail }) =>
+          setSplitPanelPreferences(detail)
+        }
         splitPanel={
           <SplitPanel
             header={

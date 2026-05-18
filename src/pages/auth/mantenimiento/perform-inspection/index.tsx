@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+// 🚩 IMPORTAMOS TU INSTANCIA API EN LUGAR DE AXIOS PURO
+import api from '@/services/api';
 import {
   AppLayout,
   Container,
@@ -125,16 +126,14 @@ export default function PerformInspection() {
   const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
   const [checks, setChecks] = useState<Record<string, any>>({});
 
-  // 🚩 ESTADO NUEVO: Almacena las versiones ISO maestras traídas de la base de datos
+  // ESTADO NUEVO: Almacena las versiones ISO maestras traídas de la base de datos
   const [dbConfigs, setDbConfigs] = useState<Record<string, any>>({});
 
   // Carga inicial de configuraciones de calidad desde la BD
   const loadActiveConfigs = async () => {
     try {
-      const res = await axios.get(
-        `${MAINTENANCE_API_URL}/api/document-configs`,
-        { withCredentials: true },
-      );
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/document-configs`);
       if (res.data.success) {
         // Reducimos el arreglo a un diccionario indexado por llave ('ref', 'conge')
         const configMap = res.data.data.reduce((acc: any, curr: any) => {
@@ -212,17 +211,15 @@ export default function PerformInspection() {
       area: area.label,
       turno: turno.value,
       checks: checks,
-      // 🚩 ENVIAMOS LA CONFIGURACIÓN REAL ACTUAL DE LA BASE DE DATOS
+      // ENVIAMOS LA CONFIGURACIÓN REAL ACTUAL DE LA BASE DE DATOS
       metadata: dbConfigs[area.value],
     };
 
     try {
-      const response = await axios.post(
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      const response = await api.post(
         `${MAINTENANCE_API_URL}/api/inspections`,
         payload,
-        {
-          withCredentials: true,
-        },
       );
 
       if (response.data.success) {

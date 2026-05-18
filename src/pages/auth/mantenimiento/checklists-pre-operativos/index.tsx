@@ -1,5 +1,6 @@
 import * as React from 'react';
-import axios from 'axios';
+// 🚩 IMPORTAMOS NUESTRA INSTANCIA PROTEGIDA EN LUGAR DE AXIOS PURO
+import api from '@/services/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -451,9 +452,8 @@ export default function PreOperativeChecklists() {
   const fetchInspections = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${MAINTENANCE_API_URL}/api/inspections`, {
-        withCredentials: true,
-      });
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/inspections`);
       if (res.data.success) {
         const mappedData: ChecklistExecution[] = res.data.data.map(
           (item: any) => {
@@ -540,10 +540,8 @@ export default function PreOperativeChecklists() {
 
   const handleOpenConfigModal = async () => {
     try {
-      const res = await axios.get(
-        `${MAINTENANCE_API_URL}/api/document-configs`,
-        { withCredentials: true },
-      );
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/document-configs`);
       if (res.data.success) {
         const current = res.data.data.find(
           (c: any) => c.area_key === configArea.value,
@@ -576,10 +574,10 @@ export default function PreOperativeChecklists() {
   const handleSaveConfig = async () => {
     setIsSavingConfig(true);
     try {
-      const res = await axios.put(
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      const res = await api.put(
         `${MAINTENANCE_API_URL}/api/document-configs/${configArea.value}`,
         formConfig,
-        { withCredentials: true },
       );
       if (res.data.success) {
         if (addAlert)
@@ -658,10 +656,10 @@ export default function PreOperativeChecklists() {
         operador: editOperador,
         checks: editChecks,
       };
-      await axios.put(
+      // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+      await api.put(
         `${MAINTENANCE_API_URL}/api/inspections/${editId}`,
         payload,
-        { withCredentials: true },
       );
       if (addAlert)
         addAlert(
@@ -686,10 +684,8 @@ export default function PreOperativeChecklists() {
     setIsDeleting(true);
     try {
       for (const item of selectedItems) {
-        await axios.delete(
-          `${MAINTENANCE_API_URL}/api/inspections/${item.id}`,
-          { withCredentials: true },
-        );
+        // 🚩 USAMOS LA INSTANCIA api PROTEGIDA
+        await api.delete(`${MAINTENANCE_API_URL}/api/inspections/${item.id}`);
       }
       if (addAlert)
         addAlert(

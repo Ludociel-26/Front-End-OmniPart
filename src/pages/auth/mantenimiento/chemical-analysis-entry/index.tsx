@@ -1,5 +1,6 @@
 import * as React from 'react';
-import axios from 'axios';
+// 🚩 IMPORTAMOS NUESTRA INSTANCIA PROTEGIDA
+import api from '@/services/api';
 import {
   AppLayout,
   Container,
@@ -126,10 +127,8 @@ export default function ChemicalAnalysisEntry() {
 
   const loadActiveConfigs = async () => {
     try {
-      const res = await axios.get(
-        `${MAINTENANCE_API_URL}/api/document-configs`,
-        { withCredentials: true },
-      );
+      // 🚩 USANDO LA INSTANCIA api PROTEGIDA
+      const res = await api.get(`${MAINTENANCE_API_URL}/api/document-configs`);
       if (res.data.success) {
         const configQuimicos = res.data.data.find(
           (c: any) => c.area_key === 'analisis_quimicos_vapor',
@@ -229,12 +228,10 @@ export default function ChemicalAnalysisEntry() {
     };
 
     try {
-      const response = await axios.post(
+      // 🚩 USANDO LA INSTANCIA api PROTEGIDA
+      const response = await api.post(
         `${MAINTENANCE_API_URL}/api/chemical-analysis`,
         payload,
-        {
-          withCredentials: true,
-        },
       );
 
       if (
