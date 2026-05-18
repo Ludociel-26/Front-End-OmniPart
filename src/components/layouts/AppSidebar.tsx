@@ -155,29 +155,29 @@ export default () => {
             },
             {
               type: 'section',
-              text: 'Bitácoras',
+              text: 'Bitácora',
               items: [
                 {
                   type: 'link',
-                  text: 'Registro de Pre-Operativos',
+                  text: 'Pre-Operativos',
                   href: '/maintenance/checklists-pre-operativos',
                   info: <span style={betaStyle}>Dev</span>,
                 },
                 {
                   type: 'link',
-                  text: 'Registro Central de Vapor',
+                  text: 'Central de Vapor',
                   href: '/maintenance/vapor-logs-table',
                   info: <span style={betaStyle}>Dev</span>,
                 },
                 {
                   type: 'link',
-                  text: 'Registro Compresor de Aire',
+                  text: 'Compresor de Aire',
                   href: '/maintenance/air-logs-table',
                   info: <span style={betaStyle}>Dev</span>,
                 },
                 {
                   type: 'link',
-                  text: 'Registro Análisis Químicos',
+                  text: 'Análisis Químicos',
                   href: '/maintenance/chemical-analysis-logs-table',
                   info: <span style={betaStyle}>Dev</span>,
                 },
@@ -189,7 +189,7 @@ export default () => {
               items: [
                 {
                   type: 'link',
-                  text: 'Nueva Inspección Pre-Operativa',
+                  text: 'Inspección Pre-Operativa',
                   href: '/maintenance/perform-inspection',
                   info: <span style={newStyle}>New</span>,
                 },

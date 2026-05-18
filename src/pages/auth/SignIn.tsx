@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+
+// 🚩 Importamos nuestra instancia configurada en lugar de axios nativo
+import api from '@/services/api';
 
 import {
   Sun,
@@ -439,7 +441,6 @@ export default function Login() {
     theme,
     isDark,
     toggleTheme,
-    backendUrl,
     setIsLoggedin,
     isLoggedin,
     getUserData,
@@ -551,7 +552,9 @@ export default function Login() {
   const isFormValid =
     strengthPercent === 100 && formData.password === formData.confirmPassword;
 
-  // LÓGICA DE SUBMIT
+  // =======================================================================
+  // 🚩 LÓGICA DE SUBMIT REFACTORIZADA (Usando `api.post`)
+  // =======================================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPageLoading(true);
@@ -565,10 +568,11 @@ export default function Login() {
     );
 
     try {
-      axios.defaults.withCredentials = true;
+      // 🚩 axios.defaults.withCredentials se eliminó porque 'api' ya lo maneja internamente.
 
       if (!isLogin) {
-        const { data } = await axios.post(`${backendUrl}/api/auth/register`, {
+        // Usamos la instancia centralizada 'api'
+        const { data } = await api.post(`/api/auth/register`, {
           name: formData.name,
           surname: formData.surname,
           country: formData.country,
@@ -604,7 +608,8 @@ export default function Login() {
           setPageLoading(false);
         }
       } else {
-        const { data } = await axios.post(`${backendUrl}/api/auth/login`, {
+        // Usamos la instancia centralizada 'api'
+        const { data } = await api.post(`/api/auth/login`, {
           email: formData.email,
           password: formData.password,
         });
@@ -714,7 +719,7 @@ export default function Login() {
       : 'bg-white/70 border-white/60 text-gray-900 shadow-sm font-semibold hover:bg-white/90 drop-shadow-sm'
   }`;
 
-  // 🚩 Estilos MEJORADOS para Menús Desplegables (Glassmorphism real con padding interno)
+  // Estilos MEJORADOS para Menús Desplegables
   const dropdownMenuClasses = `absolute top-[110%] right-0 w-48 rounded-2xl shadow-2xl border backdrop-blur-2xl z-50 p-1.5 flex flex-col gap-0.5 ${
     isDark
       ? 'bg-[#121212]/80 border-white/10 text-white'

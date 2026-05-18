@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import axios from 'axios';
 import {
   AppLayout,
   Container,
@@ -13,14 +14,19 @@ import {
   Box,
   ColumnLayout,
   Grid,
+  Modal,
+  Flashbar,
 } from '@cloudscape-design/components';
 
+import { AppContent } from '@/context/AppContext';
 import Navbar from '@/components/layouts/AppHeader';
 import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
-// --- DICCIONARIO DE TAREAS EXACTAS POR ÁREA (Basado en los PDFs) ---
+const MAINTENANCE_API_URL =
+  import.meta.env.VITE_MAINTENANCE_API_URL || 'http://localhost:4001';
+
 const CHECKLISTS_POR_AREA = {
   ref: [
     { id: 'termo_ref', label: 'CHECAR TERMODINAMICAS' },
@@ -55,7 +61,7 @@ const CHECKLISTS_POR_AREA = {
     },
     {
       id: 'val_sel_ref',
-      label: 'CHECAR FUNCIONAMINETO DE VALVULAS SELENOIDE DE TANQUE DE DIA',
+      label: 'CHECAR FUNCIONAMIENTO DE VALVULAS SELENOIDE DE TANQUE DE DIA',
     },
     { id: 'alarma_ref', label: 'CHECAR ALARMA DE TANQUE DE DIA' },
     { id: 'mirilla_ref', label: 'CHECAR MIRILLA DE TANQUE DE COMBUSTOLEO' },
@@ -90,27 +96,68 @@ const CHECKLISTS_POR_AREA = {
   ],
 };
 
+const formatLocalTime = (isoString: string) => {
+  const date = isoString ? new Date(isoString) : new Date();
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Monterrey',
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
 export default function PerformInspection() {
+  const { alerts, addAlert } = useContext(AppContent) || {};
+
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
 
-  // --- ESTADO DEL FORMULARIO ---
-  // FIX: Tipamos como any para el componente Select
   const [area, setArea] = useState<any>({
-    label: 'Calderas Ref',
+    label: 'Calderas de Refrigeración',
     value: 'ref',
   });
   const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
-
-  // FIX: Tipamos checks como un diccionario para evitar el error de asignación de keys dinámicas
   const [checks, setChecks] = useState<Record<string, any>>({});
 
-  // --- LÓGICA DINÁMICA: Efecto que cambia las preguntas cuando cambia el Área ---
+  // 🚩 ESTADO NUEVO: Almacena las versiones ISO maestras traídas de la base de datos
+  const [dbConfigs, setDbConfigs] = useState<Record<string, any>>({});
+
+  // Carga inicial de configuraciones de calidad desde la BD
+  const loadActiveConfigs = async () => {
+    try {
+      const res = await axios.get(
+        `${MAINTENANCE_API_URL}/api/document-configs`,
+        { withCredentials: true },
+      );
+      if (res.data.success) {
+        // Reducimos el arreglo a un diccionario indexado por llave ('ref', 'conge')
+        const configMap = res.data.data.reduce((acc: any, curr: any) => {
+          acc[curr.area_key] = curr;
+          return acc;
+        }, {});
+        setDbConfigs(configMap);
+      }
+    } catch (e) {
+      if (addAlert)
+        addAlert(
+          'error',
+          'Fallo al sincronizar matriz de control de versiones ISO.',
+        );
+    }
+  };
+
   useEffect(() => {
-    // FIX: Casteamos el diccionario a any para evitar el error de validación del índice dinámico
+    loadActiveConfigs();
+  }, []);
+
+  useEffect(() => {
     const tareasActuales = (CHECKLISTS_POR_AREA as any)[area.value] || [];
-    // FIX: Tipamos el acc y el task
     const estadoInicial = tareasActuales.reduce(
       (acc: any, task: any) => ({
         ...acc,
@@ -118,12 +165,10 @@ export default function PerformInspection() {
       }),
       {},
     );
-
     setChecks(estadoInicial);
-    setShowErrorAlert(false); // Limpiamos errores previos
+    setShowErrorAlert(false);
   }, [area.value]);
 
-  // FIX: Tipamos taskId y newStatus
   const handleStatusChange = (taskId: string, newStatus: any) => {
     setChecks((prev) => ({
       ...prev,
@@ -135,22 +180,15 @@ export default function PerformInspection() {
     }));
   };
 
-  // FIX: Tipamos taskId y text
   const handleCommentChange = (taskId: string, text: string) => {
     setChecks((prev) => ({
       ...prev,
-      [taskId]: {
-        ...prev[taskId],
-        comments: text,
-      },
+      [taskId]: { ...prev[taskId], comments: text },
     }));
   };
 
-  // FIX: Tipamos 'e' e implementamos preventDefault condicional
-  const handleSubmit = (e?: any) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
+  const handlePreSubmit = (e?: any) => {
+    if (e) e.preventDefault();
     setShowErrorAlert(false);
 
     const hasErrors = Object.values(checks).some(
@@ -164,23 +202,69 @@ export default function PerformInspection() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-
-    setIsSubmitting(true);
-    console.log('Datos enviados al Backend:', {
-      area: area.value,
-      turno: turno.value,
-      checks,
-    });
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert('Inspección guardada exitosamente en Base de Datos');
-    }, 1500);
+    setIsConfirmModalVisible(true);
   };
 
-  // Variable auxiliar para obtener las tareas del área seleccionada
-  // FIX: Casteamos a any
+  const confirmSubmit = async () => {
+    setIsSubmitting(true);
+
+    const payload = {
+      area: area.label,
+      turno: turno.value,
+      checks: checks,
+      // 🚩 ENVIAMOS LA CONFIGURACIÓN REAL ACTUAL DE LA BASE DE DATOS
+      metadata: dbConfigs[area.value],
+    };
+
+    try {
+      const response = await axios.post(
+        `${MAINTENANCE_API_URL}/api/inspections`,
+        payload,
+        {
+          withCredentials: true,
+        },
+      );
+
+      if (response.data.success) {
+        const serverTimestamp =
+          response.data.data.createdAt || response.data.data.timestamp;
+        const fechaFormateada = serverTimestamp
+          ? formatLocalTime(serverTimestamp)
+          : 'este momento';
+
+        if (addAlert) {
+          addAlert(
+            'success',
+            `Folio de Mantenimiento #${response.data.data.id} creado exitosamente el ${fechaFormateada}.`,
+          );
+        }
+
+        setIsConfirmModalVisible(false);
+        setArea({ label: 'Calderas de Refrigeración', value: 'ref' });
+        setTurno({ label: 'Turno A', value: 'A' });
+      }
+    } catch (error: any) {
+      setIsConfirmModalVisible(false);
+      const errorMsg =
+        error.response?.data?.message ||
+        'Error de conexión con el servidor de infraestructura.';
+      if (addAlert) addAlert('error', errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const tareasDeLaVista = (CHECKLISTS_POR_AREA as any)[area.value] || [];
+
+  // Respaldo de carga si la BD tarda en responder
+  const currentMetadata = dbConfigs[area.value] || {
+    codigo_documento: 'Cargando...',
+    version: '--',
+    fecha_revision: '--',
+    estandar_calidad: '--',
+    propietario: '--',
+    aprobador: '--',
+  };
 
   return (
     <div
@@ -196,7 +280,6 @@ export default function PerformInspection() {
         style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}
       >
         <Navbar />
-        {/* FIX: Ignoramos la validación de TS para las props del SecondaryHeader */}
         {/* @ts-ignore */}
         <SecondaryHeader
           breadcrumbs={[
@@ -215,63 +298,73 @@ export default function PerformInspection() {
         navigationOpen={navigationOpen}
         onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
         toolsHide={true}
+        notifications={
+          alerts && alerts.length > 0 ? (
+            <Flashbar items={alerts as any} stackItems={true} />
+          ) : null
+        }
         content={
           <div style={{ padding: '24px' }}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handlePreSubmit}>
               <Form
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button formAction="none" variant="link">
                       Cancelar
                     </Button>
-                    <Button
-                      variant="primary"
-                      loading={isSubmitting}
-                      onClick={handleSubmit}
-                    >
-                      Guardar Inspección
+                    <Button variant="primary" onClick={handlePreSubmit}>
+                      Revisar y Enviar
                     </Button>
                   </SpaceBetween>
                 }
                 errorText={
                   showErrorAlert
-                    ? 'Por favor, justifique todas las anomalías o fallas detectadas en la sección de comentarios.'
+                    ? 'Requiere Atención: Por favor, justifique todas las anomalías o fallas detectadas en la sección de comentarios.'
                     : null
                 }
               >
                 <SpaceBetween size="l">
                   <Header
                     variant="h1"
-                    description="Complete el checklist pre-operativo. Las desviaciones requieren justificación obligatoria."
+                    description={`Formato SGC No. ${currentMetadata.codigo_documento} | Versión: ${currentMetadata.version}`}
+                    actions={
+                      <Box color="text-status-inactive">
+                        Rev: {currentMetadata.fecha_revision}
+                      </Box>
+                    }
                   >
-                    Nueva Inspección Pre-Operativa
+                    Check List Pre Operativo
                   </Header>
 
-                  {/* METADATA DEL TURNO */}
                   <Container
                     header={<Header variant="h2">Datos de Operación</Header>}
                   >
                     <ColumnLayout columns={2}>
                       <FormField
                         label="Área / Equipo"
-                        description="Seleccione el área para cargar su checklist específico"
+                        description="Seleccione el sector a auditar"
                       >
                         <Select
                           selectedOption={area}
-                          // FIX: as any
                           onChange={({ detail }) =>
                             setArea(detail.selectedOption as any)
                           }
                           options={[
-                            { label: 'Calderas Ref', value: 'ref' },
-                            { label: 'Calderas Conge', value: 'conge' },
+                            {
+                              label: 'Calderas de Refrigeración',
+                              value: 'ref',
+                            },
+                            {
+                              label: 'Calderas de Congelación',
+                              value: 'conge',
+                            },
                           ]}
                         />
                       </FormField>
+
                       <FormField label="Turno Asignado">
                         <Select
                           selectedOption={turno}
-                          // FIX: as any
                           onChange={({ detail }) =>
                             setTurno(detail.selectedOption as any)
                           }
@@ -285,7 +378,6 @@ export default function PerformInspection() {
                     </ColumnLayout>
                   </Container>
 
-                  {/* CHECKLIST DE TAREAS DINÁMICO */}
                   <Container
                     header={
                       <Header
@@ -296,12 +388,11 @@ export default function PerformInspection() {
                       </Header>
                     }
                   >
-                    {/* Verificamos si el estado checks ya se inicializó con las tareas correctas */}
                     {Object.keys(checks).length === tareasDeLaVista.length ? (
                       <SpaceBetween size="xl">
                         {tareasDeLaVista.map((task: any, index: number) => {
                           const currentCheck = checks[task.id];
-                          if (!currentCheck) return null; // Previene errores de renderizado rápido
+                          if (!currentCheck) return null;
 
                           const requiresComment =
                             currentCheck.status === 'ANORMAL' ||
@@ -321,7 +412,6 @@ export default function PerformInspection() {
                                   }}
                                 />
                               )}
-
                               <Grid
                                 gridDefinition={[
                                   { colspan: { default: 12, s: 7 } },
@@ -335,7 +425,6 @@ export default function PerformInspection() {
                                     height: '100%',
                                   }}
                                 >
-                                  {/* FIX: variant 'span' no existe nativamente, forzamos as any */}
                                   <Box
                                     variant={'span' as any}
                                     fontSize="body-m"
@@ -344,7 +433,6 @@ export default function PerformInspection() {
                                     {task.label}
                                   </Box>
                                 </div>
-
                                 <div
                                   style={{
                                     display: 'flex',
@@ -379,11 +467,11 @@ export default function PerformInspection() {
                                   }}
                                 >
                                   <FormField
-                                    label="Observaciones Y/O Comentarios"
-                                    description={`Obligatorio para justificar estado: ${currentCheck.status}`}
+                                    label="Observaciones Técnicas"
+                                    description={`Detalle la anomalía para justificar el estado: ${currentCheck.status}`}
                                     errorText={
                                       isMissingComment
-                                        ? 'Debe ingresar un comentario describiendo el problema.'
+                                        ? 'Obligatorio: Ingrese un comentario describiendo la desviación operativa.'
                                         : null
                                     }
                                   >
@@ -395,7 +483,7 @@ export default function PerformInspection() {
                                           detail.value,
                                         )
                                       }
-                                      placeholder="Describa el problema encontrado o la acción tomada..."
+                                      placeholder="Describa los parámetros inestables observados..."
                                       rows={2}
                                     />
                                   </FormField>
@@ -407,7 +495,7 @@ export default function PerformInspection() {
                       </SpaceBetween>
                     ) : (
                       <Box textAlign="center" margin={{ top: 'xl' }}>
-                        Cargando checklist...
+                        Inicializando checklist de operación...
                       </Box>
                     )}
                   </Container>
@@ -418,6 +506,50 @@ export default function PerformInspection() {
         }
       />
       <Footer />
+
+      <Modal
+        onDismiss={() => setIsConfirmModalVisible(false)}
+        visible={isConfirmModalVisible}
+        closeAriaLabel="Cerrar ventana"
+        header="Confirmar Envío de Bitácora Operativa"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsConfirmModalVisible(false)}
+              >
+                Modificar Datos
+              </Button>
+              <Button
+                variant="primary"
+                loading={isSubmitting}
+                onClick={confirmSubmit}
+              >
+                Firmar y Subir
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p" padding={{ bottom: 'm' }}>
+          Está a punto de registrar la bitácora para la operación de{' '}
+          <b>{area.label}</b> correspondiente al <b>{turno.label}</b>.
+        </Box>
+        <Box variant="p" color="text-status-info">
+          <i>
+            Este documento se auditará bajo el estándar de{' '}
+            <b>{currentMetadata.estandar_calidad}</b>, siendo Propietario{' '}
+            <b>{currentMetadata.propietario}</b> y Aprobador{' '}
+            <b>{currentMetadata.aprobador}</b>.
+          </i>
+        </Box>
+        <Box variant="p" color="text-body-secondary" margin={{ top: 'l' }}>
+          Al enviar este documento, usted firma electrónicamente garantizando
+          que los parámetros reportados son precisos y se adhieren a la versión{' '}
+          {currentMetadata.version} del SGC.
+        </Box>
+      </Modal>
     </div>
   );
 }

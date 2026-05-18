@@ -7,6 +7,13 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
   }
+
+  /* 🚩 SOLUCIÓN CLOUDSCAPE vs TAILWIND: 
+     Evitamos que Tailwind colapse los bordes de las tablas. 
+     Esto restaura las esquinas redondeadas mágicas del modo Multi-Select de AWS */
+  table {
+    border-collapse: separate !important;
+  }
 }
 
 @layer utilities {

@@ -16,7 +16,7 @@ import {
   Spinner,
 } from '@cloudscape-design/components';
 
-// 🚩 FIX DEL CORS: Permite que las cookies viajen en todas las peticiones globales
+// 🔒 Asegura que el Front-End envíe las cookies (JWT) en cada petición
 axios.defaults.withCredentials = true;
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -49,21 +49,17 @@ interface AppContextType {
   userData: UserData | null;
   setUserData: (value: UserData | null) => void;
   getUserData: () => Promise<void>;
-
   executeGlobalLogout: () => Promise<void>;
   executeGlobalLoginSync: () => void;
-
   theme: ThemeMode;
   isDark: boolean;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
-
   isLoading: boolean;
   pageLoading: boolean;
   setPageLoading: (loading: boolean) => void;
   loadingText: string;
   setLoadingText: (text: string) => void;
-
   alerts: AlertItem[];
   addAlert: (
     type: AlertItem['type'],
@@ -85,35 +81,29 @@ export const AppContextProvider = ({
 
   const [isLoggedin, setIsLoggedin] = useState<boolean>(false);
   const [userData, setUserData] = useState<UserData | null>(null);
-
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [pageLoading, setPageLoading] = useState<boolean>(false);
   const [loadingText, setLoadingText] = useState<string>('Cargando...');
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
-  // =======================================================================
-  // ESTADOS PARA LOS 3 MODALES DE SEGURIDAD
-  // =======================================================================
+  // ESTADOS PARA MODALES DE SEGURIDAD
   const [showDisabledModal, setShowDisabledModal] = useState<boolean>(false);
   const [showWarningModal, setShowWarningModal] = useState<boolean>(false);
   const [showExpiredModal, setShowExpiredModal] = useState<boolean>(false);
 
-  // =======================================================================
-  // REFERENCIAS (TIEMPO Y BROADCAST)
-  // =======================================================================
   const lastActivityRef = useRef<number>(Date.now());
   const authChannel = useRef<BroadcastChannel | null>(null);
 
-  const IDLE_TIMEOUT = 15 * 60 * 1000; // 15 minutos para matar la sesión
-  const WARNING_TIMEOUT = 13 * 60 * 1000; // 13 minutos para advertir
+  const IDLE_TIMEOUT = 15 * 60 * 1000; // 15 minutos
+  const WARNING_TIMEOUT = 13 * 60 * 1000; // 13 minutos
 
   const updateActivity = useCallback(() => {
-    // Si hay un modal de bloqueo en pantalla, la actividad se ignora (AWS Trap)
     if (!showWarningModal && !showExpiredModal && !showDisabledModal) {
       lastActivityRef.current = Date.now();
     }
   }, [showWarningModal, showExpiredModal, showDisabledModal]);
 
+  // 🚩 LÓGICA DE ALERTAS INTACTA
   const addAlert = useCallback(
     (
       type: AlertItem['type'],
@@ -156,7 +146,6 @@ export const AppContextProvider = ({
     [],
   );
 
-  // --- AUTH GETTERS ---
   const getUserData = useCallback(async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/user/data`);
@@ -164,12 +153,14 @@ export const AppContextProvider = ({
         setUserData(data.userData);
         setIsLoggedin(true);
       }
-    } catch (error: any) {}
+    } catch (error) {}
   }, [backendUrl]);
 
   const getAuthState = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/api/auth/is-auth`);
+      const { data } = await axios.get(
+        `${backendUrl}/api/auth/is-auth?init=true`,
+      );
       if (data.success) {
         setIsLoggedin(true);
         await getUserData();
@@ -185,75 +176,79 @@ export const AppContextProvider = ({
     }
   }, [backendUrl, getUserData]);
 
-  // =======================================================================
-  // 0. BROADCAST CHANNEL: SINCRONIZACIÓN MULTI-PESTAÑA
-  // =======================================================================
+  // BROADCAST PARA SINCRONIZAR MÚLTIPLES PESTAÑAS
   useEffect(() => {
     authChannel.current = new BroadcastChannel('auth_sync_channel');
-
     authChannel.current.onmessage = (event) => {
       const { type, payload } = event.data;
+      if (window.location.pathname.includes('/login')) return;
 
       if (type === 'LOGOUT_SYNC') {
         setShowWarningModal(false);
-
-        // 🚩 NO usamos setIsLoggedin(false) para no destruir la vista actual
-        if (payload === 'DISABLED') {
-          setShowDisabledModal(true);
-        } else if (payload === 'EXPIRED' || payload === 'MANUAL') {
-          setShowExpiredModal(true);
-        }
+        if (payload === 'DISABLED') setShowDisabledModal(true);
+        else if (payload === 'EXPIRED') setShowExpiredModal(true);
       }
-
       if (type === 'LOGIN_SYNC') {
         getAuthState();
         setShowExpiredModal(false);
         setShowDisabledModal(false);
       }
     };
-
-    return () => {
-      authChannel.current?.close();
-    };
+    return () => authChannel.current?.close();
   }, [getAuthState]);
 
-  // Función manual (Botón de Cerrar Sesión)
   const executeGlobalLogout = async () => {
     try {
       await axios.post(`${backendUrl}/api/auth/logout`);
     } catch (err) {}
     setIsLoggedin(false);
     setUserData(null);
+    setShowExpiredModal(false);
+    setShowDisabledModal(false);
     authChannel.current?.postMessage({
       type: 'LOGOUT_SYNC',
       payload: 'MANUAL',
     });
-    window.location.href = '/login'; // Esta pestaña sí redirige porque fue manual
+    window.location.href = '/login';
   };
 
-  const executeGlobalLoginSync = () => {
+  const executeGlobalLoginSync = () =>
     authChannel.current?.postMessage({ type: 'LOGIN_SYNC' });
-  };
 
   // =======================================================================
-  // 1. EL INTERCEPTOR (CONGELA LA VISTA ANTE ERRORES 401/403)
+  // INTERCEPTOR CON MANEJO DE MENSAJES DINÁMICOS
   // =======================================================================
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response && error.response.status === 403) {
-          if (error.response.data.message === 'ACCOUNT_DISABLED_FORCE_LOGOUT') {
+        const url = error.config?.url || '';
+
+        if (
+          url.includes('/login') ||
+          url.includes('/register') ||
+          url.includes('init=true')
+        ) {
+          return Promise.reject(error);
+        }
+
+        if (error.response) {
+          // 🚩 Extraemos el mensaje humano del Back-End. Si no existe, usamos un fallback seguro.
+          const backendMessage =
+            error.response.data?.message ||
+            'Ha ocurrido un error de autenticación.';
+
+          if (error.response.status === 403) {
             setShowDisabledModal(true);
+            // El mensaje se inyecta directamente en la notificación de Cloudscape
+            addAlert('error', backendMessage, 'Acceso Restringido');
             authChannel.current?.postMessage({
               type: 'LOGOUT_SYNC',
               payload: 'DISABLED',
             });
-          }
-        }
-        if (error.response && error.response.status === 401) {
-          if (error.response.data.message === 'SESSION_EXPIRED') {
+          } else if (error.response.status === 401) {
             setShowExpiredModal(true);
+            addAlert('error', backendMessage, 'Sesión Terminada');
             authChannel.current?.postMessage({
               type: 'LOGOUT_SYNC',
               payload: 'EXPIRED',
@@ -264,10 +259,10 @@ export const AppContextProvider = ({
       },
     );
     return () => axios.interceptors.response.eject(interceptor);
-  }, []);
+  }, [addAlert]);
 
   // =======================================================================
-  // 2. EL "HEARTBEAT" Y RELOJ DE INACTIVIDAD (SÚPER OPTIMIZADO)
+  // RELOJES Y HEARTBEAT DE SEGURIDAD
   // =======================================================================
   useEffect(() => {
     let localTimerId: ReturnType<typeof setInterval>;
@@ -280,6 +275,11 @@ export const AppContextProvider = ({
       } catch (err) {}
       setShowWarningModal(false);
       setShowExpiredModal(true);
+      addAlert(
+        'warning',
+        'Cerramos tu sesión por inactividad prolongada.',
+        'Sesión Expirada',
+      );
       authChannel.current?.postMessage({
         type: 'LOGOUT_SYNC',
         payload: 'EXPIRED',
@@ -289,10 +289,8 @@ export const AppContextProvider = ({
     if (isLoggedin && !showDisabledModal && !showExpiredModal) {
       events.forEach((event) => window.addEventListener(event, updateActivity));
 
-      // 🕒 RELOJ LOCAL (Cada 5 segundos) - No consume internet, solo revisa memoria
       localTimerId = setInterval(() => {
         const timeIdle = Date.now() - lastActivityRef.current;
-
         if (timeIdle >= WARNING_TIMEOUT && timeIdle < IDLE_TIMEOUT) {
           setShowWarningModal(true);
         } else if (timeIdle >= IDLE_TIMEOUT) {
@@ -300,13 +298,31 @@ export const AppContextProvider = ({
         }
       }, 5000);
 
-      // 🌐 RELOJ DE RED (Cada 2 minutos / 120,000 ms) - Avisa a la API que estás vivo
-      apiHeartbeatId = setInterval(() => {
+      apiHeartbeatId = setInterval(async () => {
         const timeIdle = Date.now() - lastActivityRef.current;
         if (timeIdle < WARNING_TIMEOUT) {
-          axios.get(`${backendUrl}/api/auth/is-auth`).catch(() => {});
+          try {
+            const response = await axios.get(
+              `${backendUrl}/api/auth/is-auth?t=${Date.now()}`,
+            );
+            if (response.data && response.data.success === false) {
+              setShowExpiredModal(true);
+              authChannel.current?.postMessage({
+                type: 'LOGOUT_SYNC',
+                payload: 'EXPIRED',
+              });
+            }
+          } catch (error: any) {
+            if (error.response && error.response.status === 401) {
+              setShowExpiredModal(true);
+              authChannel.current?.postMessage({
+                type: 'LOGOUT_SYNC',
+                payload: 'EXPIRED',
+              });
+            }
+          }
         }
-      }, 120000);
+      }, 10000);
     }
 
     return () => {
@@ -322,18 +338,14 @@ export const AppContextProvider = ({
     showExpiredModal,
     backendUrl,
     updateActivity,
-    WARNING_TIMEOUT,
-    IDLE_TIMEOUT,
+    addAlert,
   ]);
 
-  // =======================================================================
-  // 3. ACCIONES DE MODALES Y REDIRECCIONES
-  // =======================================================================
-  const handleGoToHome = () => {
-    window.location.href = '/';
-  };
-
   const handleGoToLogin = () => {
+    setIsLoggedin(false);
+    setUserData(null);
+    setShowExpiredModal(false);
+    setShowDisabledModal(false);
     window.location.href = '/login';
   };
 
@@ -342,7 +354,6 @@ export const AppContextProvider = ({
     setShowWarningModal(false);
   };
 
-  // --- GESTIÓN DE TEMA ---
   const [theme, setTheme] = useState<ThemeMode>(
     () => (localStorage.getItem('theme') as ThemeMode) || 'system',
   );
@@ -409,12 +420,11 @@ export const AppContextProvider = ({
 
   return (
     <AppContent.Provider value={value}>
-      {/* 🛑 MODAL 1: CUENTA DESHABILITADA */}
+      {/* 🛑 MODAL DE CUENTA DESHABILITADA (UX Pulida) */}
       <Modal
-        onDismiss={handleGoToHome}
+        onDismiss={() => {}}
         visible={showDisabledModal}
-        closeAriaLabel="Cerrar modal y volver al inicio"
-        header="Sesión finalizada"
+        header="Acceso Restringido"
         footer={
           <Box float="right">
             <Button variant="primary" onClick={handleGoToLogin}>
@@ -424,17 +434,18 @@ export const AppContextProvider = ({
         }
       >
         <SpaceBetween size="m">
-          <Alert type="error" header="Acceso restringido">
-            Tu cuenta ha sido deshabilitada por el administrador. Ya no tienes
-            permiso para navegar en el sistema.
+          <Alert type="error" header="Cuenta suspendida">
+            Tu acceso al sistema ha sido suspendido temporalmente. Por favor,
+            contacta al administrador para solucionar este problema.
           </Alert>
           <Box variant="p">
-            Cualquier cambio que no hayas guardado se perderá.
+            Cualquier cambio no guardado en tu inventario se ha descartado por
+            seguridad.
           </Box>
         </SpaceBetween>
       </Modal>
 
-      {/* ⚠️ MODAL 2: ADVERTENCIA DE INACTIVIDAD (Minuto 13) */}
+      {/* ⚠️ MODAL DE ADVERTENCIA */}
       <Modal
         onDismiss={() => {}}
         visible={showWarningModal}
@@ -449,20 +460,16 @@ export const AppContextProvider = ({
       >
         <SpaceBetween size="m">
           <Alert type="warning" header="Inactividad detectada">
-            Por tu seguridad, cerraremos tu sesión automáticamente en breve si
-            no detectamos actividad.
+            Cerraremos tu sesión automáticamente en breve si no interactúas con
+            el sistema.
           </Alert>
-          <Box variant="p">
-            Haz clic en el botón inferior para mantener tu sesión activa.
-          </Box>
         </SpaceBetween>
       </Modal>
 
-      {/* ❌ MODAL 3: SESIÓN CADUCADA (LA VISTA SE QUEDA DETRÁS) */}
+      {/* ❌ MODAL DE SESIÓN CADUCADA */}
       <Modal
-        onDismiss={handleGoToHome}
+        onDismiss={() => {}}
         visible={showExpiredModal}
-        closeAriaLabel="Cerrar modal"
         header="Sesión caducada"
         footer={
           <Box float="right">
@@ -473,14 +480,13 @@ export const AppContextProvider = ({
         }
       >
         <SpaceBetween size="m">
-          <Alert type="warning" header="Su sesión ha caducado">
-            Por motivos de seguridad, se ha cerrado la sesión o ha expirado.
-            Vuelva a iniciar sesión para continuar utilizando el sistema.
+          <Alert type="warning" header="Su sesión ha expirado">
+            Por seguridad, tu tiempo de sesión ha concluido. Vuelve a iniciar
+            sesión para continuar.
           </Alert>
         </SpaceBetween>
       </Modal>
 
-      {/* 🚩 SPINNER INICIAL CENTRADO */}
       {isLoading ? (
         <div
           style={{
