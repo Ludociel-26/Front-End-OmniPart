@@ -94,6 +94,11 @@ const DailyReportsRefrigeratedMachinery = React.lazy(
     import('@/pages/auth/mantenimiento/daily-reports-refrigerated-machinery/index'),
 );
 
+const DailyReportsRefrigeratedMachineryLogsTable = React.lazy(
+  () =>
+    import('@/pages/auth/mantenimiento/daily-reports-frozen-machinery-logs-table/index'),
+);
+
 const DailyReportsRefrigerationRefrigerated = React.lazy(
   () =>
     import('@/pages/auth/mantenimiento/daily-reports-refrigeration-refrigerated'),
@@ -339,6 +344,15 @@ const AppRouter = () => {
             element={
               <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
                 <DailyReportsRefrigeratedMachinery />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/maintenance/daily-reports-refrigerated-machinery-logs-table"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <DailyReportsRefrigeratedMachineryLogsTable />
               </ProtectedRoute>
             }
           />

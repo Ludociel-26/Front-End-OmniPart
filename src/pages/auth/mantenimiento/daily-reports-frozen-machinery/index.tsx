@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import axios from 'axios';
 import {
   AppLayout,
   Container,
@@ -15,12 +16,18 @@ import {
   Textarea,
   ExpandableSection,
   Checkbox,
+  Flashbar,
+  Modal,
 } from '@cloudscape-design/components';
 
+import { AppContent } from '@/context/AppContext';
 import Navbar from '@/components/layouts/AppHeader';
 import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
+
+const MAINTENANCE_API_URL =
+  import.meta.env.VITE_MAINTENANCE_API_URL || 'http://localhost:4001';
 
 // --- TIPOS DE DATOS LOCALES ---
 interface SelectOption {
@@ -126,77 +133,109 @@ const OPCIONES_GENERALES_3 = [
   { text: '! Anormal', id: 'ANORMAL' },
   { text: '✕ Falla', id: 'FALLA' },
 ];
-
 const OPCIONES_REJILLAS = [
   { text: '✓ Limpias', id: 'NORMAL' },
   { text: '! Req. Limpieza', id: 'ANORMAL' },
   { text: '✕ Obstruidas', id: 'FALLA' },
 ];
-
 const OPCIONES_DESHIELO = [
   { text: '✓ -26° a -18°', id: 'NORMAL' },
   { text: '! -17° a -10°', id: 'ANORMAL' },
   { text: '✕ -d -d-', id: 'FALLA' },
 ];
-
 const OPCIONES_FUGAS_DRAGER = [
   { text: '✓ Sin Fuga', id: 'SIN_FUGA' },
   { text: '✕ Con Fuga', id: 'CON_FUGA' },
 ];
-
 const OPCIONES_DOSIFICADORES = [
   { text: 'SÍ', id: 'SI' },
   { text: 'NO', id: 'NO' },
 ];
 
 export default function DailyReportCongelados() {
+  const appContext = useContext(AppContent) as any;
+  const alerts = appContext?.alerts || [];
+  const addAlert = appContext?.addAlert;
+
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
 
   const [turno, setTurno] = useState<SelectOption>({
     label: 'Turno A',
     value: 'A',
   });
   const [observacionesGlobales, setObservacionesGlobales] = useState('');
-
   const [evaluations, setEvaluations] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    const initialState: Record<string, any> = {};
+  // 🚩 ESTADO SGC TRAÍDO DE LA API
+  const [sgcConfig, setSgcConfig] = useState<any>({
+    codigo_documento: 'Cargando...',
+    version: '--',
+    fecha_revision: '--',
+    fecha_reemplazo: '--',
+    propietario: '--',
+    aprobador: '--',
+    estandar_calidad: '--',
+    razon_cambio: '--',
+  });
 
-    // Iniciar Módulos Estándar (3 Estados)
+  // 🚩 CARGA DE CONFIGURACIÓN AUTOMÁTICA DESDE TU ENDPOINT ISO
+  const loadActiveConfigs = async () => {
+    try {
+      const res = await axios.get(
+        `${MAINTENANCE_API_URL}/api/document-configs`,
+        { withCredentials: true },
+      );
+      if (res.data.success) {
+        // Buscamos explícitamente la llave inyectada en el backend
+        const configCongelados = res.data.data.find(
+          (c: any) => c.area_key === 'reportes_diarios_congelados',
+        );
+        if (configCongelados) {
+          setSgcConfig(configCongelados);
+        }
+      }
+    } catch (e) {
+      if (addAlert)
+        addAlert(
+          'error',
+          'Fallo al sincronizar la matriz de control de versiones ISO.',
+        );
+    }
+  };
+
+  const initForm = () => {
+    const initialState: Record<string, any> = {};
     [
       ...SCHEMA.maquinaria,
       ...SCHEMA.cuartos,
       ...SCHEMA.acondicionado,
-      ...SCHEMA.amoniaco, // Amoníaco es A, B, C en formato v3.0
+      ...SCHEMA.amoniaco,
     ].forEach((item) => {
       initialState[item.id] = { status: 'NORMAL', comments: '' };
     });
-
-    // Iniciar Módulos Aislados (Rejillas, Deshielo, Ecochiller)
     Object.values(SCHEMA.sistemas_aislados).forEach((item) => {
       initialState[item.id] = { status: 'NORMAL', comments: '' };
     });
-
-    // Iniciar Fugas Drager
     SCHEMA.fugas_drager.forEach((item) => {
       initialState[item.id] = { status: 'SIN_FUGA', comments: '' };
     });
-
-    // Iniciar Dosificadores
     SCHEMA.dosificadores.forEach((item) => {
       initialState[item.id] = { status: 'SI', comments: '' };
     });
-
-    // Iniciar Limpieza
     initialState[SCHEMA.limpieza.id] = { status: false, comments: '' };
 
     setEvaluations(initialState);
     setObservacionesGlobales('');
     setShowErrorAlert(false);
-  }, [turno.value]);
+  };
+
+  useEffect(() => {
+    initForm();
+    loadActiveConfigs(); // Consultamos los datos máster de la API
+  }, []);
 
   const handleStatusChange = (id: string, newStatus: any) => {
     setEvaluations((prev) => ({
@@ -213,6 +252,7 @@ export default function DailyReportCongelados() {
             : prev[id].comments,
       },
     }));
+    setShowErrorAlert(false);
   };
 
   const handleCommentChange = (id: string, text: string) => {
@@ -220,15 +260,14 @@ export default function DailyReportCongelados() {
       ...prev,
       [id]: { ...prev[id], comments: text },
     }));
+    setShowErrorAlert(false);
   };
 
-  // FIX: Cambiado 'e?: React.FormEvent' a 'e?: any' para que funcione con ambos eventos
-  const handleSubmit = (e?: any) => {
+  const handlePreSubmit = (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
     setShowErrorAlert(false);
 
-    // Validación: Se exige comentario si algo está Anormal, Falla, Con Fuga o en NO.
-    const hasErrors = Object.values(evaluations).some(
+    const ruralErrors = Object.values(evaluations).some(
       (evalItem) =>
         (evalItem.status === 'ANORMAL' ||
           evalItem.status === 'FALLA' ||
@@ -237,32 +276,64 @@ export default function DailyReportCongelados() {
         evalItem.comments?.trim() === '',
     );
 
-    if (hasErrors) {
+    if (ruralErrors) {
       setShowErrorAlert(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    setIsSubmitting(true);
-    const payload = {
-      reportType: 'diario_maquinaria_congelados',
-      turno: turno.value,
-      timestamp: new Date().toISOString(),
-      evaluations,
-      observacionesGlobales,
-    };
-
-    console.log('JSON listo para Base de Datos:', payload);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert(
-        `Reporte Diario de Congelados (Turno ${turno.value}) guardado exitosamente.`,
-      );
-    }, 1500);
+    setIsConfirmModalVisible(true);
   };
 
-  // Renderizador principal unificado
+  const confirmSubmit = async () => {
+    setIsSubmitting(true);
+
+    // 🚩 EL PAYLOAD SE SINCRONIZA CON LOS CAMPOS MAESTROS QUE TU CONTROLADOR ESPERA
+    const payload = {
+      reportType: 'congelados',
+      turno: turno.value,
+      evaluations,
+      observacionesGlobales,
+      // Metadatos dinámicos del SGC para auditorías cruzadas
+      codigo_documento: sgcConfig.codigo_documento,
+      version: sgcConfig.version,
+      fecha_revision: sgcConfig.fecha_revision,
+      fecha_reemplazo: sgcConfig.fecha_reemplazo,
+      propietario: sgcConfig.propietario,
+      aprobador: sgcConfig.aprobador,
+      estandar_calidad: sgcConfig.estandar_calidad,
+      razon_cambio: sgcConfig.razon_cambio,
+    };
+
+    try {
+      const response = await axios.post(
+        `${MAINTENANCE_API_URL}/api/congelados-report`,
+        payload,
+        { withCredentials: true },
+      );
+
+      if (response.data.success) {
+        if (addAlert)
+          addAlert(
+            'success',
+            `Reporte Diario de Congelados (Turno ${turno.value}) guardado exitosamente bajo versión ${sgcConfig.version}.`,
+          );
+        initForm();
+        setIsConfirmModalVisible(false);
+      }
+    } catch (error: any) {
+      setIsConfirmModalVisible(false);
+      if (addAlert)
+        addAlert(
+          'error',
+          error.response?.data?.message ||
+            'Error al conectar con la base de datos de infraestructura.',
+        );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const renderRow = (item: any, options: any[]) => {
     const currentEval = evaluations[item.id];
     if (!currentEval) return null;
@@ -272,12 +343,12 @@ export default function DailyReportCongelados() {
       currentEval.status === 'FALLA' ||
       currentEval.status === 'CON_FUGA' ||
       currentEval.status === 'NO';
-
     const isMissingComment =
       showErrorAlert && requiresComment && currentEval.comments.trim() === '';
 
     let borderColor = '#ff9900';
-    if (currentEval.status === 'FALLA') borderColor = '#d13212';
+    if (currentEval.status === 'FALLA' || currentEval.status === 'CON_FUGA')
+      borderColor = '#d13212';
 
     return (
       <div
@@ -302,7 +373,6 @@ export default function DailyReportCongelados() {
               height: '100%',
             }}
           >
-            {/* @ts-ignore */}
             <Box
               variant="span"
               fontSize="body-m"
@@ -310,7 +380,6 @@ export default function DailyReportCongelados() {
             >
               {item.label}
             </Box>
-            {/* Mostrar descripción extra si existe en el esquema (Ideal para rangos) */}
             {item.desc && (
               <span
                 style={{ fontSize: '12px', color: '#545b64', marginTop: '4px' }}
@@ -378,7 +447,7 @@ export default function DailyReportCongelados() {
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        backgroundColor: '#f2f3f3',
+        backgroundColor: 'var(--color-background-layout-main, #f2f3f3)',
       }}
     >
       <div
@@ -404,34 +473,41 @@ export default function DailyReportCongelados() {
         navigationOpen={navigationOpen}
         onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
         toolsHide={true}
+        notifications={
+          alerts && alerts.length > 0 ? (
+            <Flashbar items={alerts as any} stackItems={true} />
+          ) : null
+        }
         content={
           <div style={{ padding: '24px' }}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handlePreSubmit}>
               <Form
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
-                    <Button formAction="none" variant="link">
+                    <Button formAction="none" variant="link" onClick={initForm}>
                       Descartar
                     </Button>
-                    <Button
-                      variant="primary"
-                      loading={isSubmitting}
-                      onClick={handleSubmit}
-                    >
-                      Guardar Reporte
+                    <Button variant="primary" onClick={handlePreSubmit}>
+                      Revisar y Enviar
                     </Button>
                   </SpaceBetween>
                 }
                 errorText={
                   showErrorAlert
-                    ? 'Faltan comentarios en las evaluaciones marcadas con incidencias (Anormal, Falla, Fuga, No).'
+                    ? 'Requiere Atención: Faltan comentarios en las evaluaciones marcadas con incidencias.'
                     : null
                 }
               >
                 <SpaceBetween size="l">
+                  {/* 🚩 TITULO INTEGRADO AL SGC */}
                   <Header
                     variant="h1"
-                    description="Inspección física de equipos. Las incidencias exigen justificación."
+                    description={`Formato SGC No. ${sgcConfig.codigo_documento} | Versión: ${sgcConfig.version}`}
+                    actions={
+                      <Box color="text-status-inactive">
+                        Rev: {sgcConfig.fecha_revision}
+                      </Box>
+                    }
                   >
                     Reporte Diario: Maquinaria Congelados
                   </Header>
@@ -464,7 +540,6 @@ export default function DailyReportCongelados() {
                     </ColumnLayout>
                   </Container>
 
-                  {/* 1. MAQUINARIA */}
                   <ExpandableSection
                     headerText="1. FUNCIONAMIENTO DE MAQUINARIA"
                     variant="container"
@@ -475,7 +550,6 @@ export default function DailyReportCongelados() {
                     )}
                   </ExpandableSection>
 
-                  {/* 2. CUARTOS FRIOS */}
                   <ExpandableSection
                     headerText="2. DIFUSORES EN CUARTOS FRÍOS"
                     variant="container"
@@ -486,7 +560,6 @@ export default function DailyReportCongelados() {
                     )}
                   </ExpandableSection>
 
-                  {/* 3. DOSIFICADORES */}
                   <Grid
                     gridDefinition={[
                       { colspan: { default: 12, l: 6 } },
@@ -515,7 +588,6 @@ export default function DailyReportCongelados() {
                     </ExpandableSection>
                   </Grid>
 
-                  {/* 4. AIRE ACONDICIONADO */}
                   <ExpandableSection
                     headerText="SISTEMA DE AIRE ACONDICIONADO"
                     variant="container"
@@ -526,7 +598,6 @@ export default function DailyReportCongelados() {
                     )}
                   </ExpandableSection>
 
-                  {/* 5. SISTEMAS AISLADOS E INSPECCIONES */}
                   <ExpandableSection
                     headerText="INSPECCIONES OPERATIVAS Y SISTEMAS"
                     variant="container"
@@ -548,7 +619,6 @@ export default function DailyReportCongelados() {
                     </SpaceBetween>
                   </ExpandableSection>
 
-                  {/* 6. AMONIACO Y FUGAS */}
                   <ExpandableSection
                     headerText="DETECCIÓN Y FUGAS DE AMONIACO"
                     variant="container"
@@ -559,7 +629,6 @@ export default function DailyReportCongelados() {
                       {SCHEMA.amoniaco.map((item) =>
                         renderRow(item, OPCIONES_GENERALES_3),
                       )}
-
                       <Box variant="h4" margin={{ top: 'l' }}>
                         INSPECCIÓN DRAGER
                       </Box>
@@ -569,7 +638,6 @@ export default function DailyReportCongelados() {
                     </SpaceBetween>
                   </ExpandableSection>
 
-                  {/* 7. LIMPIEZA Y OBSERVACIONES FINALES */}
                   <Grid
                     gridDefinition={[
                       { colspan: { default: 12, m: 5 } },
@@ -595,7 +663,6 @@ export default function DailyReportCongelados() {
                         </Checkbox>
                       </FormField>
                     </Container>
-
                     <Container
                       header={
                         <Header variant="h3">OBSERVACIONES FINALES</Header>
@@ -606,7 +673,7 @@ export default function DailyReportCongelados() {
                         onChange={({ detail }) =>
                           setObservacionesGlobales(detail.value)
                         }
-                        placeholder="Escriba aquí los comentarios generales del reporte diario o eventualidades del turno..."
+                        placeholder="Escriba aquí los comentarios generales..."
                         rows={3}
                       />
                     </Container>
@@ -618,6 +685,50 @@ export default function DailyReportCongelados() {
         }
       />
       <Footer />
+
+      <Modal
+        onDismiss={() => setIsConfirmModalVisible(false)}
+        visible={isConfirmModalVisible}
+        closeAriaLabel="Cerrar ventana"
+        header="Confirmar Envío de Reporte Diario"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsConfirmModalVisible(false)}
+              >
+                Modificar Datos
+              </Button>
+              <Button
+                variant="primary"
+                loading={isSubmitting}
+                onClick={confirmSubmit}
+              >
+                Firmar y Subir
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p" padding={{ bottom: 'm' }}>
+          Está a punto de registrar el reporte de maquinaria de congelados para
+          el <b>{turno.label}</b>.
+        </Box>
+        <Box variant="p" color="text-status-info">
+          <i>
+            Este documento se auditará bajo el estándar de{' '}
+            <b>{sgcConfig.estandar_calidad}</b>, siendo Propietario{' '}
+            <b>{sgcConfig.propietario}</b> y Aprobador{' '}
+            <b>{sgcConfig.aprobador}</b>.
+          </i>
+        </Box>
+        <Box variant="p" color="text-body-secondary" margin={{ top: 'l' }}>
+          Al enviar este documento, usted firma electrónicamente garantizando
+          que los parámetros reportados son precisos y se adhieren a la versión{' '}
+          {sgcConfig.version} del SGC.
+        </Box>
+      </Modal>
     </div>
   );
 }

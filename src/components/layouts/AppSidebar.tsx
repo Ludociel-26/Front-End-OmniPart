@@ -53,7 +53,7 @@ export default () => {
           type: 'link',
           text: 'Panel',
           href: '/dashboard',
-          info: <span style={betaStyle}>Beta</span>,
+          info: <span style={betaStyle}>Dev</span>,
         },
         { type: 'divider' },
         // ==========================================
@@ -179,6 +179,12 @@ export default () => {
                   type: 'link',
                   text: 'Análisis Químicos',
                   href: '/maintenance/chemical-analysis-logs-table',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
+                {
+                  type: 'link',
+                  text: 'Maquinaria Congelados',
+                  href: '/maintenance/daily-reports-refrigerated-machinery-logs-table',
                   info: <span style={betaStyle}>Dev</span>,
                 },
               ],
