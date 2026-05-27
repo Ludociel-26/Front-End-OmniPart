@@ -108,6 +108,10 @@ const CuartoFrio5TelemetryEntry = React.lazy(
   () => import('@/pages/auth/mantenimiento/cuarto-frio5-telemetry-entry/index'),
 );
 
+const CuartoFrio5TableLogs = React.lazy(
+  () => import('@/pages/auth/mantenimiento/cuarto-frio5-table-logs/index'),
+);
+
 const TelemetryEntry = React.lazy(
   () => import('@/pages/auth/mantenimiento/telemetry-entry/index'),
 );
@@ -371,6 +375,15 @@ const AppRouter = () => {
             element={
               <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
                 <CuartoFrio5TelemetryEntry />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/maintenance/cuarto-frio5-table-logs"
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <CuartoFrio5TableLogs />
               </ProtectedRoute>
             }
           />

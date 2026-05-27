@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useState, useEffect, useContext } from 'react';
+import api from '@/services/api';
 import {
   AppLayout,
   Container,
@@ -15,16 +17,21 @@ import {
   Alert,
   Textarea,
   SegmentedControl,
+  Modal,
+  Flashbar,
 } from '@cloudscape-design/components';
 
+import { AppContent } from '@/context/AppContext';
 import Navbar from '@/components/layouts/AppHeader';
 import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
+const MAINTENANCE_API_URL =
+  import.meta.env.VITE_MAINTENANCE_API_URL || 'http://localhost:4001';
+
 // --- ESQUEMA MAESTRO: CUARTO FRÍO #5 (2.2-16-3-16) ---
 const SCHEMA = {
-  // Parámetros del Sistema / Compresores
   parametrosSistema: [
     { id: 'nivel_refrigerante', label: 'Nivel de Refrigerante', unit: '%' },
     {
@@ -43,8 +50,6 @@ const SCHEMA = {
     },
     { id: 'pct_carga', label: '% de Carga', unit: '%' },
   ],
-
-  // Temperaturas de los 8 Evaporadores (Aceptan "D" para Deshielo)
   evaporadores: [
     {
       id: 'evap_1',
@@ -111,8 +116,6 @@ const SCHEMA = {
       desc: '1±1°C (D: 3, 9, 15, 21)',
     },
   ],
-
-  // Temperaturas Generales
   temperaturasAmbiente: [
     { id: 'temp_ambiente', label: 'Temp Ambiente Exterior', unit: '°C' },
     {
@@ -142,9 +145,7 @@ const SCHEMA = {
   ],
 };
 
-// Generador de 24 horas (De 7:00 a 06:00 según el formato)
 const generateHourOptions = () => {
-  // FIX: Tipamos el arreglo de opciones como any[]
   const options: any[] = [];
   for (let i = 0; i < 24; i++) {
     const hourString = i.toString().padStart(2, '0') + ':00';
@@ -154,29 +155,56 @@ const generateHourOptions = () => {
 };
 
 export default function CuartoFrio5TelemetryEntry() {
-  const [navigationOpen, setNavigationOpen] = React.useState(true);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { alerts, addAlert } = useContext(AppContent) || {};
 
-  // FIX: Tipamos estados a any para los componentes Select de Cloudscape
-  const [turno, setTurno] = React.useState<any>({
-    label: 'Turno A',
-    value: 'A',
+  const [navigationOpen, setNavigationOpen] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
+
+  // Estados Base
+  const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
+  const [hour, setHour] = useState<any>({ label: '07:00', value: '07:00' });
+  const [observaciones, setObservaciones] = useState('');
+  const [readings, setReadings] = useState<Record<string, any>>({});
+
+  // ESTADO SGC: Almacena las versiones ISO traídas de la base de datos
+  const [sgcConfig, setSgcConfig] = useState<any>({
+    codigo_documento: 'Cargando...',
+    version: '--',
+    fecha_revision: '--',
+    propietario: '--',
+    aprobador: '--',
+    estandar_calidad: '--',
   });
-  const [hour, setHour] = React.useState<any>({
-    label: '07:00',
-    value: '07:00',
-  });
-  const [observaciones, setObservaciones] = React.useState('');
 
-  // FIX: Aseguramos que TS reconozca "readings" como un diccionario dinámico
-  const [readings, setReadings] = React.useState<Record<string, any>>({});
+  // 1. CARGA INICIAL DEL FORMATO SGC
+  useEffect(() => {
+    const loadActiveConfigs = async () => {
+      try {
+        const res = await api.get(
+          `${MAINTENANCE_API_URL}/api/document-configs`,
+        );
+        if (res.data.success) {
+          const config = res.data.data.find(
+            (c: any) => c.area_key === 'bitacora_cuarto_frio_5',
+          );
+          if (config) setSgcConfig(config);
+        }
+      } catch (e) {
+        if (addAlert)
+          addAlert(
+            'error',
+            'Fallo al sincronizar matriz de control de versiones ISO.',
+          );
+      }
+    };
+    loadActiveConfigs();
+  }, []);
 
-  // Inicialización de campos
-  React.useEffect(() => {
-    // FIX: Tipamos initialReadings
+  // 2. INICIALIZAR LECTURAS AL CAMBIAR HORA O TURNO
+  useEffect(() => {
     const initialReadings: Record<string, any> = {};
-
-    // Nivel de Aceite tiene su propio control (OK / X)
     initialReadings['nivel_aceite'] = 'OK';
     initialReadings['apagadores_encendidos'] = true;
 
@@ -186,61 +214,88 @@ export default function CuartoFrio5TelemetryEntry() {
 
     setReadings(initialReadings);
     setObservaciones('');
+    setShowErrorAlert(false);
   }, [hour.value, turno.value]);
 
-  // FIX: Tipamos id y value
   const handleInputChange = (id: string, value: any) => {
     setReadings((prev) => ({ ...prev, [id]: value }));
   };
 
-  // CORRECCIÓN 2: Validador protegido contra valores 'undefined'
-  // FIX: Tipamos metric y value
   const getValidationError = (metric: any, value: any) => {
-    // Escudo: Si es undefined, nulo, o cadena vacía, no validamos nada aún
     if (value === undefined || value === null || value === '') return null;
-
-    // Convertimos a string por seguridad antes de hacer trim()
     const stringValue = String(value).trim().toUpperCase();
+    if (stringValue === 'D') return null; // Letra D es válida (Deshielo)
 
-    // Regla especial: Si es 'D', es un deshielo válido
-    if (stringValue === 'D') return null;
-
-    // Si no es D, intentamos convertir a número
     const num = parseFloat(stringValue);
-    if (isNaN(num)) return 'Ingrese un número o la letra "D" para deshielo.';
-
+    if (isNaN(num)) return 'Ingrese un número o "D" para deshielo.';
     if (metric.min !== undefined && num < metric.min)
-      return `Mínimo esperado: ${metric.min}`;
+      return `Min esperado: ${metric.min}`;
     if (metric.max !== undefined && num > metric.max)
-      return `Máximo esperado: ${metric.max}`;
-
+      return `Max esperado: ${metric.max}`;
     return null;
   };
 
-  // FIX: Tipamos el evento de forma opcional y llamamos preventDefault condicionalmente
-  const handleSubmit = (e?: any) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
+  // 3. VALIDACIÓN PRE-ENVÍO (Abrir Modal)
+  const handlePreSubmit = (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setShowErrorAlert(false);
+
+    let hasErrors = false;
+    // Comprobar errores visuales en todos los campos numéricos
+    [
+      ...SCHEMA.parametrosSistema,
+      ...SCHEMA.evaporadores,
+      ...SCHEMA.temperaturasAmbiente,
+    ].forEach((metric) => {
+      if (getValidationError(metric, readings[metric.id])) hasErrors = true;
+    });
+
+    if (hasErrors) {
+      setShowErrorAlert(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
+    setIsConfirmModalVisible(true);
+  };
+
+  // 4. CONFIRMAR Y GUARDAR EN BACKEND
+  const confirmSubmit = async () => {
     setIsSubmitting(true);
 
     const payload = {
-      assetArea: 'cuarto_frio_5',
       turno: turno.value,
       timestampHour: hour.value,
       telemetry: readings,
       observaciones,
+      metadata: sgcConfig, // Se inyecta la cabecera ISO al registro
     };
 
-    console.log('JSON listo para Base de Datos (Cuarto Frío #5):', payload);
+    try {
+      const response = await api.post(
+        `${MAINTENANCE_API_URL}/api/cuarto-frio-5`,
+        payload,
+      );
 
-    setTimeout(() => {
+      if (response.data.success) {
+        if (addAlert) {
+          addAlert(
+            'success',
+            `Lecturas del CF#5 a las ${hour.value} guardadas exitosamente bajo la Norma ${sgcConfig.codigo_documento}.`,
+          );
+        }
+        setIsConfirmModalVisible(false);
+      }
+    } catch (error: any) {
+      setIsConfirmModalVisible(false);
+      const errorMsg =
+        error.response?.data?.message ||
+        'Error de conexión con el servidor de infraestructura.';
+      if (addAlert) addAlert('error', errorMsg);
+    } finally {
       setIsSubmitting(false);
-      alert(`Lecturas del CF#5 a las ${hour.value} guardadas exitosamente.`);
-    }, 1200);
+    }
   };
 
-  // Manejo seguro del estado inicial de los SegmentedControls antes de que el useEffect termine
   const nivelAceiteValue =
     readings['nivel_aceite'] !== undefined ? readings['nivel_aceite'] : 'OK';
   const apagadoresValue =
@@ -264,7 +319,6 @@ export default function CuartoFrio5TelemetryEntry() {
         style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}
       >
         <Navbar />
-        {/* FIX: Ignoramos TS para evitar problemas con la propiedad isMenuOpen */}
         {/* @ts-ignore */}
         <SecondaryHeader
           breadcrumbs={[
@@ -283,29 +337,40 @@ export default function CuartoFrio5TelemetryEntry() {
         navigationOpen={navigationOpen}
         onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
         toolsHide={true}
+        notifications={
+          alerts && alerts.length > 0 ? (
+            <Flashbar items={alerts as any} stackItems={true} />
+          ) : null
+        }
         content={
           <div style={{ padding: '24px' }}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handlePreSubmit}>
               <Form
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button formAction="none" variant="link">
                       Descartar
                     </Button>
-                    <Button
-                      variant="primary"
-                      loading={isSubmitting}
-                      onClick={handleSubmit}
-                    >
-                      Guardar Registro Horario
+                    <Button variant="primary" onClick={handlePreSubmit}>
+                      Firma y Registro Horario
                     </Button>
                   </SpaceBetween>
+                }
+                errorText={
+                  showErrorAlert
+                    ? 'Verifique los parámetros resaltados en rojo. Corrija las anomalías antes de firmar el documento.'
+                    : null
                 }
               >
                 <SpaceBetween size="l">
                   <Header
                     variant="h1"
-                    description="Capture los parámetros del cuarto frío. Use la letra 'D' en los evaporadores cuando se encuentren en ciclo de deshielo."
+                    description={`Formato SGC No. ${sgcConfig.codigo_documento} | Versión: ${sgcConfig.version}. Use la letra 'D' en evaporadores en ciclo de deshielo.`}
+                    actions={
+                      <Box color="text-status-inactive">
+                        Rev: {sgcConfig.fecha_revision}
+                      </Box>
+                    }
                   >
                     Bitácora: Sala de Compresores Cuarto Frío #5
                   </Header>
@@ -318,7 +383,6 @@ export default function CuartoFrio5TelemetryEntry() {
                       <FormField label="Turno de Operación">
                         <Select
                           selectedOption={turno}
-                          // FIX: Forzamos la opción como any para que la acepte
                           onChange={({ detail }) =>
                             setTurno(detail.selectedOption as any)
                           }
@@ -332,7 +396,6 @@ export default function CuartoFrio5TelemetryEntry() {
                       <FormField label="Hora (Intervalos de 1 Hr)">
                         <Select
                           selectedOption={hour}
-                          // FIX: Forzamos la opción como any
                           onChange={({ detail }) =>
                             setHour(detail.selectedOption as any)
                           }
@@ -357,10 +420,15 @@ export default function CuartoFrio5TelemetryEntry() {
                             key={metric.id}
                             label={`${metric.label} (${metric.unit})`}
                             description={metric.desc}
+                            errorText={getValidationError(
+                              metric,
+                              readings[metric.id],
+                            )}
                           >
                             <Input
                               type="number"
                               step="any"
+                              placeholder="0.00"
                               value={
                                 readings[metric.id] !== undefined
                                   ? readings[metric.id]
@@ -369,7 +437,6 @@ export default function CuartoFrio5TelemetryEntry() {
                               onChange={({ detail }) =>
                                 handleInputChange(metric.id, detail.value)
                               }
-                              placeholder="0.00"
                             />
                           </FormField>
                         ))}
@@ -438,6 +505,7 @@ export default function CuartoFrio5TelemetryEntry() {
                           >
                             <Input
                               type="text"
+                              placeholder="Ej. 1.5 o D"
                               value={
                                 readings[evap.id] !== undefined
                                   ? readings[evap.id]
@@ -446,7 +514,6 @@ export default function CuartoFrio5TelemetryEntry() {
                               onChange={({ detail }) =>
                                 handleInputChange(evap.id, detail.value)
                               }
-                              placeholder="Ej. 1.5 o D"
                             />
                           </FormField>
                         </div>
@@ -481,6 +548,7 @@ export default function CuartoFrio5TelemetryEntry() {
                           <Input
                             type="number"
                             step="any"
+                            placeholder="0.00"
                             value={
                               readings[temp.id] !== undefined
                                 ? readings[temp.id]
@@ -489,7 +557,6 @@ export default function CuartoFrio5TelemetryEntry() {
                             onChange={({ detail }) =>
                               handleInputChange(temp.id, detail.value)
                             }
-                            placeholder="0.00"
                           />
                         </FormField>
                       ))}
@@ -551,6 +618,50 @@ export default function CuartoFrio5TelemetryEntry() {
         }
       />
       <Footer />
+
+      {/* MODAL CONFIRMACION SGC */}
+      <Modal
+        onDismiss={() => setIsConfirmModalVisible(false)}
+        visible={isConfirmModalVisible}
+        closeAriaLabel="Cerrar ventana"
+        header="Confirmar Envío de Bitácora Operativa"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsConfirmModalVisible(false)}
+              >
+                Modificar Datos
+              </Button>
+              <Button
+                variant="primary"
+                loading={isSubmitting}
+                onClick={confirmSubmit}
+              >
+                Firmar y Subir
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p" padding={{ bottom: 'm' }}>
+          Está a punto de registrar la telemetría del Cuarto Frío #5 a las{' '}
+          <b>{hour.label} hrs</b> (<b>{turno.label}</b>).
+        </Box>
+        <Box variant="p" color="text-status-info">
+          <i>
+            Este documento se auditará bajo el estándar{' '}
+            <b>{sgcConfig.estandar_calidad}</b>, Propietario:{' '}
+            <b>{sgcConfig.propietario}</b>.
+          </i>
+        </Box>
+        <Box variant="p" color="text-body-secondary" margin={{ top: 'l' }}>
+          Al enviar este documento, usted firma electrónicamente garantizando
+          que los parámetros reportados son precisos y se adhieren a la versión{' '}
+          {sgcConfig.version} del SGC.
+        </Box>
+      </Modal>
     </div>
   );
 }

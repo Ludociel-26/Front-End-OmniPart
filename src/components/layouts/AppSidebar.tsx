@@ -187,6 +187,12 @@ export default () => {
                   href: '/maintenance/daily-reports-refrigerated-machinery-logs-table',
                   info: <span style={betaStyle}>Dev</span>,
                 },
+                {
+                  type: 'link',
+                  text: 'Cuarto Frío #5',
+                  href: '/maintenance/cuarto-frio5-table-logs',
+                  info: <span style={betaStyle}>Dev</span>,
+                },
               ],
             },
             {

@@ -1,4 +1,5 @@
-import * as React from 'react';
+import { useState, useEffect, useContext } from 'react';
+import api from '@/services/api';
 import {
   AppLayout,
   Container,
@@ -11,34 +12,35 @@ import {
   Input,
   Box,
   ColumnLayout,
-  // FIX: Se elimina Grid de la importación porque no se utiliza
   Alert,
   SegmentedControl,
   Textarea,
+  Modal,
+  Flashbar,
+  Grid,
 } from '@cloudscape-design/components';
 
+import { AppContent } from '@/context/AppContext';
 import Navbar from '@/components/layouts/AppHeader';
 import GlobalSidebar from '@/components/layouts/AppSidebar';
 import SecondaryHeader from '@/components/layouts/BreadcrumbNavBar';
 import { Footer } from '@/components/layouts/AppFooter';
 
+const MAINTENANCE_API_URL =
+  import.meta.env.VITE_MAINTENANCE_API_URL || 'http://localhost:4001';
+
 // --- ESQUEMA MAESTRO: BITÁCORA COMPRESOR DE AIRE ---
 const COMPRESSOR_SCHEMA = {
-  // Configuración de Temperaturas
   tempLecturas: [1, 2, 3, 4, 5, 6, 7],
   tempFinales: [
     { id: 'temp_sull', label: 'Temperatura Sull', unit: '°C', max: 95 },
     { id: 'temp_gd', label: 'Temperatura GD', unit: '°C', max: 95 },
   ],
-
-  // Configuración de Presiones
   presLecturas: [1, 2, 3, 4, 5, 6, 7],
   presFinales: [
     { id: 'pres_sull', label: 'Presión Sull', unit: 'PSI', min: 100, max: 120 },
     { id: 'pres_gd', label: 'Presión GD', unit: 'PSI', min: 100, max: 120 },
   ],
-
-  // Revisiones Visuales
   visualChecks: [
     {
       id: 'fuga_aire',
@@ -81,8 +83,6 @@ const COMPRESSOR_SCHEMA = {
       ],
     },
   ],
-
-  // Cierre de Turno
   cierreTurno: [
     { id: 'horas_sull', label: 'Horas Trabajadas (Sull)', unit: 'Hrs' },
     { id: 'horas_gd', label: 'Horas Trabajadas (GD)', unit: 'Hrs' },
@@ -99,39 +99,63 @@ const generateBiHourlyOptions = () => {
 };
 
 export default function AirCompressorEntry() {
-  const [navigationOpen, setNavigationOpen] = React.useState(true);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  // FIX: Tipamos el estado select como any para facilitar la compatibilidad
-  const [hour, setHour] = React.useState<any>({
-    label: '06:00',
-    value: '06:00',
+  const { alerts, addAlert } = useContext(AppContent) || {};
+
+  const [navigationOpen, setNavigationOpen] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
+
+  // Estados Base
+  const [hour, setHour] = useState<any>({ label: '06:00', value: '06:00' });
+  const [turno, setTurno] = useState<any>({ label: 'Turno A', value: 'A' });
+  const [observaciones, setObservaciones] = useState('');
+  const [readings, setReadings] = useState<Record<string, any>>({});
+
+  // ESTADO SGC
+  const [sgcConfig, setSgcConfig] = useState<any>({
+    codigo_documento: 'Cargando...',
+    version: '--',
+    fecha_revision: '--',
+    propietario: '--',
+    aprobador: '--',
+    estandar_calidad: '--',
   });
-  const [observaciones, setObservaciones] = React.useState('');
 
-  // FIX: Definimos explícitamente que "readings" es un diccionario con llaves string
-  const [readings, setReadings] = React.useState<Record<string, any>>({});
+  // 1. CARGAR PLANTILLA SGC AL INICIAR
+  useEffect(() => {
+    const loadActiveConfigs = async () => {
+      try {
+        const res = await api.get(
+          `${MAINTENANCE_API_URL}/api/document-configs`,
+        );
+        if (res.data.success) {
+          const config = res.data.data.find(
+            (c: any) => c.area_key === 'bitacora_compresor_aire',
+          );
+          if (config) setSgcConfig(config);
+        }
+      } catch (e) {
+        if (addAlert) addAlert('error', 'Fallo al sincronizar SGC ISO.');
+      }
+    };
+    loadActiveConfigs();
+  }, []);
 
-  React.useEffect(() => {
-    // FIX: Tipamos initialReadings como un diccionario para que TS permita inyectarle llaves dinámicas
+  // 2. INICIALIZAR LECTURAS
+  useEffect(() => {
     const initialReadings: Record<string, any> = {};
-
-    // Inicializar las 7 lecturas de Temperatura y Presión
     COMPRESSOR_SCHEMA.tempLecturas.forEach(
       (num) => (initialReadings[`temp_lec_${num}`] = ''),
     );
     COMPRESSOR_SCHEMA.presLecturas.forEach(
       (num) => (initialReadings[`pres_lec_${num}`] = ''),
     );
-
-    // Inicializar los campos finales Sull/GD
     COMPRESSOR_SCHEMA.tempFinales.forEach(
       (metric) => (initialReadings[metric.id] = ''),
     );
     COMPRESSOR_SCHEMA.presFinales.forEach(
       (metric) => (initialReadings[metric.id] = ''),
     );
-
-    // Inicializar checkboxes y cierres
     COMPRESSOR_SCHEMA.visualChecks.forEach(
       (check) => (initialReadings[check.id] = check.options[0].id),
     );
@@ -143,12 +167,10 @@ export default function AirCompressorEntry() {
     setObservaciones('');
   }, [hour.value]);
 
-  // FIX: Tipamos los parámetros id y value
   const handleInputChange = (id: string, value: string) => {
     setReadings((prev) => ({ ...prev, [id]: value }));
   };
 
-  // FIX: Tipamos los parámetros metric y value
   const getValidationError = (metric: any, value: any) => {
     if (value === '' || value === undefined) return null;
     const num = parseFloat(value);
@@ -160,27 +182,83 @@ export default function AirCompressorEntry() {
     return null;
   };
 
-  // FIX: Tipamos 'e' como any y agregamos prevención opcional para que funcione tanto en Forms como Buttons
-  const handleSubmit = (e?: any) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
+  // 3. PRE-SUBMIT: ABRIR MODAL
+  const handlePreSubmit = (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setIsConfirmModalVisible(true);
+  };
 
+  // 4. GUARDAR EN LA BD
+  const confirmSubmit = async () => {
     setIsSubmitting(true);
 
+    // Mapeamos los datos para que coincidan EXACTAMENTE con el modelo Backend (CompressorReading)
+    const formattedReadings = [
+      {
+        hora: hour.value,
+        temp_1: readings.temp_lec_1,
+        temp_2: readings.temp_lec_2,
+        temp_3: readings.temp_lec_3,
+        temp_4: readings.temp_lec_4,
+        temp_5: readings.temp_lec_5,
+        temp_6: readings.temp_lec_6,
+        temp_7: readings.temp_lec_7,
+        temp_sull: readings.temp_sull,
+        temp_gd: readings.temp_gd,
+
+        pres_1: readings.pres_lec_1,
+        pres_2: readings.pres_lec_2,
+        pres_3: readings.pres_lec_3,
+        pres_4: readings.pres_lec_4,
+        pres_5: readings.pres_lec_5,
+        pres_6: readings.pres_lec_6,
+        pres_7: readings.pres_lec_7,
+        pres_sull: readings.pres_sull,
+        pres_gd: readings.pres_gd,
+
+        fuga_aire: readings.fuga_aire,
+        fuga_aceite: readings.fuga_aceite,
+        purga_test: readings.purga_test,
+        mirilla: readings.mirilla_filtro,
+        ruido: readings.ruido_extrano,
+      },
+    ];
+
     const payload = {
-      assetId: 'compresor_aire',
-      timestampHour: hour.value,
-      telemetry: readings,
-      observaciones,
+      turno: turno.value,
+      readings: formattedReadings,
+      globales: {
+        horas_sull: readings.horas_sull,
+        horas_gd: readings.horas_gd,
+        observaciones: observaciones,
+      },
+      metadata: sgcConfig,
     };
 
-    console.log('JSON listo para la Base de Datos:', payload);
+    try {
+      const response = await api.post(
+        `${MAINTENANCE_API_URL}/api/compresores`,
+        payload,
+      );
 
-    setTimeout(() => {
+      if (response.data.success) {
+        if (addAlert)
+          addAlert(
+            'success',
+            `Bitácora de las ${hour.value} hrs guardada correctamente.`,
+          );
+        setIsConfirmModalVisible(false);
+      }
+    } catch (e: any) {
+      if (addAlert)
+        addAlert(
+          'error',
+          e.response?.data?.message || 'Error de conexión con el servidor.',
+        );
+      setIsConfirmModalVisible(false);
+    } finally {
       setIsSubmitting(false);
-      alert(`Bitácora de las ${hour.value} guardada correctamente.`);
-    }, 1000);
+    }
   };
 
   return (
@@ -197,7 +275,6 @@ export default function AirCompressorEntry() {
         style={{ position: 'sticky', top: 0, zIndex: 1002, width: '100%' }}
       >
         <Navbar />
-        {/* FIX: @ts-ignore para omitir validaciones estrictas de propiedades en el componente SecondaryHeader */}
         {/* @ts-ignore */}
         <SecondaryHeader
           breadcrumbs={[
@@ -216,44 +293,67 @@ export default function AirCompressorEntry() {
         navigationOpen={navigationOpen}
         onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
         toolsHide={true}
+        notifications={
+          alerts && alerts.length > 0 ? (
+            <Flashbar items={alerts as any} stackItems={true} />
+          ) : null
+        }
         content={
           <div style={{ padding: '24px' }}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handlePreSubmit}>
               <Form
                 actions={
                   <SpaceBetween direction="horizontal" size="xs">
                     <Button formAction="none" variant="link">
                       Descartar
                     </Button>
-                    <Button
-                      variant="primary"
-                      loading={isSubmitting}
-                      onClick={handleSubmit}
-                    >
-                      Guardar Lecturas
+                    <Button variant="primary" onClick={handlePreSubmit}>
+                      Firma y Registro
                     </Button>
                   </SpaceBetween>
                 }
               >
                 <SpaceBetween size="l">
+                  {/* CABECERA SGC */}
                   <Header
                     variant="h1"
-                    description="Capture los 7 registros del periodo y los parámetros finales de Sull y GD."
+                    description={`Formato SGC No. ${sgcConfig.codigo_documento} | Versión: ${sgcConfig.version}`}
+                    actions={
+                      <Box color="text-status-inactive">
+                        Rev: {sgcConfig.fecha_revision}
+                      </Box>
+                    }
                   >
                     Bitácora Compresor de Aire
                   </Header>
 
-                  <Container>
-                    <FormField label="Hora de Lectura (Intervalo de 2 hrs)">
-                      <Select
-                        selectedOption={hour}
-                        // FIX: As any para que acepte la opción seleccionada sin conflicto
-                        onChange={({ detail }) =>
-                          setHour(detail.selectedOption as any)
-                        }
-                        options={generateBiHourlyOptions()}
-                      />
-                    </FormField>
+                  <Container
+                    header={<Header variant="h2">Contexto Operativo</Header>}
+                  >
+                    <ColumnLayout columns={2}>
+                      <FormField label="Turno Asignado">
+                        <Select
+                          selectedOption={turno}
+                          onChange={({ detail }) =>
+                            setTurno(detail.selectedOption as any)
+                          }
+                          options={[
+                            { label: 'Turno A', value: 'A' },
+                            { label: 'Turno B', value: 'B' },
+                            { label: 'Turno C', value: 'C' },
+                          ]}
+                        />
+                      </FormField>
+                      <FormField label="Hora de Lectura (Intervalo de 2 hrs)">
+                        <Select
+                          selectedOption={hour}
+                          onChange={({ detail }) =>
+                            setHour(detail.selectedOption as any)
+                          }
+                          options={generateBiHourlyOptions()}
+                        />
+                      </FormField>
+                    </ColumnLayout>
                   </Container>
 
                   {/* 1. CONTENEDOR DE TEMPERATURAS */}
@@ -265,9 +365,7 @@ export default function AirCompressorEntry() {
                     }
                   >
                     <SpaceBetween size="l">
-                      {/* Las 7 Lecturas de Temperatura */}
                       <div>
-                        {/* FIX: variant as any por la clase personalizada de AWS */}
                         <Box
                           variant={'awsui-key-label' as any}
                           margin={{ bottom: 'xs' }}
@@ -283,6 +381,7 @@ export default function AirCompressorEntry() {
                               <Input
                                 type="number"
                                 step="any"
+                                placeholder="-"
                                 value={
                                   readings[`temp_lec_${num}`] !== undefined
                                     ? readings[`temp_lec_${num}`]
@@ -294,14 +393,12 @@ export default function AirCompressorEntry() {
                                     detail.value,
                                   )
                                 }
-                                placeholder="-"
                               />
                             </FormField>
                           ))}
                         </ColumnLayout>
                       </div>
 
-                      {/* Los 2 datos finales de Temperatura (Sull y GD) */}
                       <div
                         style={{
                           borderTop: '1px solid #eaeded',
@@ -328,6 +425,7 @@ export default function AirCompressorEntry() {
                               <Input
                                 type="number"
                                 step="any"
+                                placeholder="0.00"
                                 value={
                                   readings[metric.id] !== undefined
                                     ? readings[metric.id]
@@ -336,7 +434,6 @@ export default function AirCompressorEntry() {
                                 onChange={({ detail }) =>
                                   handleInputChange(metric.id, detail.value)
                                 }
-                                placeholder="0.00"
                               />
                             </FormField>
                           ))}
@@ -350,7 +447,6 @@ export default function AirCompressorEntry() {
                     header={<Header variant="h2">Presión de Aire (PSI)</Header>}
                   >
                     <SpaceBetween size="l">
-                      {/* Las 7 Lecturas de Presión */}
                       <div>
                         <Box
                           variant={'awsui-key-label' as any}
@@ -367,6 +463,7 @@ export default function AirCompressorEntry() {
                               <Input
                                 type="number"
                                 step="any"
+                                placeholder="-"
                                 value={
                                   readings[`pres_lec_${num}`] !== undefined
                                     ? readings[`pres_lec_${num}`]
@@ -378,14 +475,12 @@ export default function AirCompressorEntry() {
                                     detail.value,
                                   )
                                 }
-                                placeholder="-"
                               />
                             </FormField>
                           ))}
                         </ColumnLayout>
                       </div>
 
-                      {/* Los 2 datos finales de Presión (Sull y GD) */}
                       <div
                         style={{
                           borderTop: '1px solid #eaeded',
@@ -412,6 +507,7 @@ export default function AirCompressorEntry() {
                               <Input
                                 type="number"
                                 step="any"
+                                placeholder="0.00"
                                 value={
                                   readings[metric.id] !== undefined
                                     ? readings[metric.id]
@@ -420,7 +516,6 @@ export default function AirCompressorEntry() {
                                 onChange={({ detail }) =>
                                   handleInputChange(metric.id, detail.value)
                                 }
-                                placeholder="0.00"
                               />
                             </FormField>
                           ))}
@@ -469,6 +564,7 @@ export default function AirCompressorEntry() {
                           <Input
                             type="number"
                             step="any"
+                            placeholder="Ej. 12500"
                             value={
                               readings[field.id] !== undefined
                                 ? readings[field.id]
@@ -477,7 +573,6 @@ export default function AirCompressorEntry() {
                             onChange={({ detail }) =>
                               handleInputChange(field.id, detail.value)
                             }
-                            placeholder="Ej. 12500"
                           />
                         </FormField>
                       ))}
@@ -506,6 +601,49 @@ export default function AirCompressorEntry() {
         }
       />
       <Footer />
+
+      {/* MODAL DE CONFIRMACIÓN SGC */}
+      <Modal
+        onDismiss={() => setIsConfirmModalVisible(false)}
+        visible={isConfirmModalVisible}
+        closeAriaLabel="Cerrar"
+        header="Firma Oficial de Bitácora"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="link"
+                onClick={() => setIsConfirmModalVisible(false)}
+              >
+                Modificar Datos
+              </Button>
+              <Button
+                variant="primary"
+                loading={isSubmitting}
+                onClick={confirmSubmit}
+              >
+                Firmar y Subir
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="p" padding={{ bottom: 'm' }}>
+          Está a punto de insertar la telemetría de las <b>{hour.label} hrs</b>{' '}
+          correspondiente al <b>{turno.label}</b>.
+        </Box>
+        <Box variant="p" color="text-status-info">
+          <i>
+            Este documento se auditará bajo el estándar de{' '}
+            <b>{sgcConfig.estandar_calidad}</b>.
+          </i>
+        </Box>
+        <Box variant="p" color="text-body-secondary" margin={{ top: 'l' }}>
+          Al enviar este documento, usted firma electrónicamente garantizando
+          que los parámetros reportados son precisos y se adhieren a la versión{' '}
+          {sgcConfig.version} del SGC.
+        </Box>
+      </Modal>
     </div>
   );
 }
