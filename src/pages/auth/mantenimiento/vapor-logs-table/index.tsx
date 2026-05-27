@@ -11,7 +11,6 @@ import {
   Header,
   Pagination,
   CollectionPreferences,
-  Select,
   AppLayout,
   StatusIndicator,
   Grid,
@@ -164,7 +163,6 @@ export default function CentralVaporLogsTable() {
   const user = appContext?.user;
 
   const [data, setData] = React.useState<any[]>([]);
-  const [rawLogs, setRawLogs] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isExporting, setIsExporting] = React.useState(false);
 
@@ -208,7 +206,6 @@ export default function CentralVaporLogsTable() {
       setLoading(true);
       const res = await api.get(`${MAINTENANCE_API_URL}/api/central-vapor`);
       if (res.data.success) {
-        setRawLogs(res.data.data);
         setData(res.data.data);
       }
     } catch (error) {
@@ -538,8 +535,8 @@ export default function CentralVaporLogsTable() {
             19: { cellWidth: 35 },
             20: { cellWidth: 35 }, // Consumos
           },
-          didParseCell: function (data) {
-            // Formato Condicional Leve: Amarillo si la celda numérica está vacía en horas clave (Opcional, lo dejamos limpio)
+          didParseCell: function (_data) {
+            // Se usa el guión bajo para silenciar la advertencia de variable sin uso
           },
         });
 

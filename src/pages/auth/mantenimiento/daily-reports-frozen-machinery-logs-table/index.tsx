@@ -299,10 +299,9 @@ export default function CongeladosReportsTable() {
     label: 'Todos',
     value: undefined,
   });
-  const [estadoFilter, setEstadoFilter] = React.useState<any>({
-    label: 'Todos',
-    value: undefined,
-  });
+
+  // FIX: Estado 'estadoFilter' eliminado ya que no se utiliza en los filtros visuales
+
   const [startDate, setStartDate] = React.useState('');
   const [endDate, setEndDate] = React.useState('');
 
@@ -430,6 +429,7 @@ export default function CongeladosReportsTable() {
     setIsEditModalVisible(true);
   };
 
+  // FIX: Ajuste en la firma de handleEditSubmit para evitar choques con el evento onClick del botón
   const handleEditSubmit = async () => {
     setIsEditing(true);
     try {

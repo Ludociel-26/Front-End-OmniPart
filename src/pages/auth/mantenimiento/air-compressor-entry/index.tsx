@@ -17,7 +17,7 @@ import {
   Textarea,
   Modal,
   Flashbar,
-  Grid,
+  // FIX: Se eliminó la importación de Grid porque no se usaba en el componente
 } from '@cloudscape-design/components';
 
 import { AppContent } from '@/context/AppContext';
@@ -139,7 +139,7 @@ export default function AirCompressorEntry() {
       }
     };
     loadActiveConfigs();
-  }, []);
+  }, [addAlert]);
 
   // 2. INICIALIZAR LECTURAS
   useEffect(() => {

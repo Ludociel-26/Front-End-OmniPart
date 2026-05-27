@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useState, useEffect, useContext } from 'react';
 import api from '@/services/api';
 import {
@@ -200,7 +199,7 @@ export default function CuartoFrio5TelemetryEntry() {
       }
     };
     loadActiveConfigs();
-  }, []);
+  }, [addAlert]);
 
   // 2. INICIALIZAR LECTURAS AL CAMBIAR HORA O TURNO
   useEffect(() => {
